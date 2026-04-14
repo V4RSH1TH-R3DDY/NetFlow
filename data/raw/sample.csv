@@ -1,0 +1,4 @@
+captured_at,src_ip,dst_ip,src_port,dst_port,protocol,packet_size,tcp_flags,payload_hash
+2026-04-14T10:00:00Z,10.0.0.1,10.0.0.2,12345,443,TCP,512,SYN,abc123
+2026-04-14T10:00:01Z,10.0.0.1,10.0.0.3,12345,80,TCP,420,ACK,def456
+2026-04-14T10:00:02Z,10.0.0.4,10.0.0.2,5353,5353,UDP,128,,ghi789
