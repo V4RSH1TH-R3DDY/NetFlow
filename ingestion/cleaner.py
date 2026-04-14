@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -62,7 +61,7 @@ def _build_fingerprint(row: pd.Series) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def clean_packet_dataframe(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def clean_packet_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Normalize and validate packet rows.
 
     Returns:
@@ -110,7 +109,14 @@ def clean_packet_dataframe(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame
     cleaned["is_valid"] = cleaned["validation_errors"].map(lambda errs: len(errs) == 0)
 
     cleaned["raw_record"] = cleaned.apply(
-        lambda row: json.dumps({k: (None if pd.isna(v) else v) for k, v in row.items() if k not in {"validation_errors", "is_valid"}}, default=str),
+        lambda row: json.dumps(
+            {
+                k: (None if pd.isna(v) else v)
+                for k, v in row.items()
+                if k not in {"validation_errors", "is_valid"}
+            },
+            default=str,
+        ),
         axis=1,
     )
     cleaned["fingerprint"] = cleaned.apply(_build_fingerprint, axis=1)

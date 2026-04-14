@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import os
 from pathlib import Path
 
@@ -9,13 +10,17 @@ import pandas as pd
 import psycopg
 from dotenv import load_dotenv
 
-from cleaner import clean_packet_dataframe
+try:
+    from .cleaner import clean_packet_dataframe
+except ImportError:
+    from cleaner import clean_packet_dataframe
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Batch ingest packet data into NetFlow PostgreSQL")
     parser.add_argument("--input", required=True, help="Input file path (.csv or .json)")
     parser.add_argument("--source-name", default="batch", help="Logical source name")
+    parser.add_argument("--strict", action="store_true", help="Fail when any row is rejected")
     return parser.parse_args()
 
 
@@ -28,6 +33,14 @@ def load_input(path: Path) -> pd.DataFrame:
     if suffix == ".json":
         return pd.read_json(path)
     raise ValueError("Unsupported input format. Use .csv or .json")
+
+
+def chunk_dataframe(df: pd.DataFrame, batch_size: int):
+    if batch_size <= 0:
+        yield df
+        return
+    for start in range(0, len(df), batch_size):
+        yield df.iloc[start : start + batch_size]
 
 
 def begin_ingestion_run(cur: psycopg.Cursor, source_name: str, source_path: str, rows_received: int) -> int:
@@ -67,27 +80,28 @@ def finalize_ingestion_run(
     )
 
 
-def copy_valid_rows_to_staging(cur: psycopg.Cursor, run_id: int, valid_rows: pd.DataFrame) -> None:
+def copy_valid_rows_to_staging(cur: psycopg.Cursor, run_id: int, valid_rows: pd.DataFrame, batch_size: int) -> None:
     if valid_rows.empty:
         return
 
-    working = valid_rows.copy()
-    working.insert(0, "run_id", run_id)
-    working["validation_errors"] = None
+    for chunk in chunk_dataframe(valid_rows, batch_size):
+        working = chunk.copy()
+        working.insert(0, "run_id", run_id)
+        working["validation_errors"] = None
 
-    csv_buffer = io.StringIO()
-    working.to_csv(csv_buffer, index=False, header=False)
-    csv_buffer.seek(0)
+        csv_buffer = io.StringIO()
+        working.to_csv(csv_buffer, index=False, header=False)
+        csv_buffer.seek(0)
 
-    with cur.copy(
-        """
-        COPY staging_packets
-        (run_id, captured_at, fingerprint, src_ip, dst_ip, src_port, dst_port, protocol,
-         packet_size, tcp_flags, payload_hash, raw_record, is_valid, validation_errors)
-        FROM STDIN WITH (FORMAT CSV)
-        """
-    ) as copy:
-        copy.write(csv_buffer.read())
+        with cur.copy(
+            """
+            COPY staging_packets
+            (run_id, captured_at, fingerprint, src_ip, dst_ip, src_port, dst_port, protocol,
+             packet_size, tcp_flags, payload_hash, raw_record, is_valid, validation_errors)
+            FROM STDIN WITH (FORMAT CSV)
+            """
+        ) as copy:
+            copy.write(csv_buffer.read())
 
 
 def insert_rejected_rows(cur: psycopg.Cursor, run_id: int, rejected_rows: pd.DataFrame) -> None:
@@ -155,6 +169,14 @@ def main() -> None:
     input_path = Path(args.input)
     source_df = load_input(input_path)
     valid_rows, rejected_rows = clean_packet_dataframe(source_df)
+    batch_size = int(os.getenv("INGESTION_BATCH_SIZE", "5000"))
+    strict_mode = args.strict or os.getenv("INGESTION_STRICT_MODE", "false").lower() == "true"
+
+    if strict_mode and not rejected_rows.empty:
+        raise RuntimeError(
+            f"Strict mode enabled and {len(rejected_rows)} rows were rejected. "
+            "Fix input quality or disable strict mode."
+        )
 
     run_id: int | None = None
     rows_inserted = 0
@@ -163,7 +185,7 @@ def main() -> None:
         with conn.cursor() as cur:
             try:
                 run_id = begin_ingestion_run(cur, args.source_name, str(input_path), len(source_df))
-                copy_valid_rows_to_staging(cur, run_id, valid_rows)
+                copy_valid_rows_to_staging(cur, run_id, valid_rows, batch_size=batch_size)
                 insert_rejected_rows(cur, run_id, rejected_rows)
                 rows_inserted = load_staging_into_packets(cur, run_id)
                 finalize_ingestion_run(
@@ -188,8 +210,16 @@ def main() -> None:
                 raise
 
     print(
-        f"Ingestion complete. rows_received={len(source_df)} "
-        f"rows_inserted={rows_inserted} rows_rejected={len(rejected_rows)}"
+        json.dumps(
+            {
+                "status": "success",
+                "rows_received": len(source_df),
+                "rows_inserted": rows_inserted,
+                "rows_rejected": len(rejected_rows),
+                "strict_mode": strict_mode,
+                "batch_size": batch_size,
+            }
+        )
     )
 
 

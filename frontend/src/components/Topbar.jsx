@@ -1,13 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { Cpu, Wifi, AlertTriangle, Monitor } from 'lucide-react';
-import { systemStats } from '../data/mockData';
+import { api } from '../lib/api';
 
 const Topbar = () => {
   const [time, setTime] = useState(new Date());
+  const [stats, setStats] = useState({
+    trafficRate: '0 Mbps',
+    packetCount: '0',
+    activeAlerts: 0,
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const loadTopbarStats = async () => {
+      try {
+        const [packets, alerts, trends] = await Promise.all([
+          api.listPackets({ limit: 1 }),
+          api.listAlerts({ limit: 1, status: 'open' }),
+          api.trafficTrends({ limit: 1 }),
+        ]);
+
+        const latestTrend = (trends || [])[0];
+        const mbps = latestTrend ? (((latestTrend.bytes_per_minute || 0) * 8) / 1_000_000 / 60).toFixed(2) : '0.00';
+
+        setStats({
+          trafficRate: `${mbps} Mbps`,
+          packetCount: new Intl.NumberFormat().format((packets || []).length),
+          activeAlerts: (alerts || []).length,
+        });
+      } catch {
+        setStats({
+          trafficRate: 'N/A',
+          packetCount: 'N/A',
+          activeAlerts: 0,
+        });
+      }
+    };
+
+    loadTopbarStats();
+    const poll = setInterval(loadTopbarStats, 15000);
+    return () => clearInterval(poll);
   }, []);
 
   return (
@@ -41,15 +77,15 @@ const Topbar = () => {
         <div className="flex items-center gap-6 text-[10px] font-mono">
           <div className="flex flex-col items-end">
             <span className="text-gray-500 text-[8px] tracking-widest uppercase">Traffic Rate</span>
-            <span className="text-neon-cyan">{systemStats.trafficRate}</span>
+            <span className="text-neon-cyan">{stats.trafficRate}</span>
           </div>
           <div className="flex flex-col items-end">
             <span className="text-gray-500 text-[8px] tracking-widest uppercase">Packet Count</span>
-            <span className="text-white">{systemStats.packetCount}</span>
+            <span className="text-white">{stats.packetCount}</span>
           </div>
           <div className="flex flex-col items-end">
             <span className="text-gray-500 text-[8px] tracking-widest uppercase">Alerts</span>
-            <span className="text-neon-red">{systemStats.activeAlerts}</span>
+            <span className="text-neon-red">{stats.activeAlerts}</span>
           </div>
         </div>
 
@@ -65,9 +101,9 @@ const Topbar = () => {
             </div>
           </div>
           <div className="w-10 h-10 rounded-full border border-dark-border bg-dark-bg p-1 shadow-skeuo-beveled">
-             <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-700 to-black flex items-center justify-center overflow-hidden border border-white/5">
-                <Monitor className="w-5 h-5 text-gray-400" />
-             </div>
+            <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-700 to-black flex items-center justify-center overflow-hidden border border-white/5">
+              <Monitor className="w-5 h-5 text-gray-400" />
+            </div>
           </div>
         </div>
       </div>

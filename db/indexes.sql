@@ -2,6 +2,7 @@
 
 -- Session access patterns
 CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions (started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sessions_ended_at ON sessions (ended_at DESC);
 CREATE INDEX IF NOT EXISTS idx_sessions_src_ip ON sessions (src_ip);
 CREATE INDEX IF NOT EXISTS idx_sessions_dst_ip ON sessions (dst_ip);
 CREATE INDEX IF NOT EXISTS idx_sessions_protocol ON sessions (protocol);
@@ -19,6 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_predictions_created_at ON predictions (created_at
 CREATE INDEX IF NOT EXISTS idx_alerts_session_id ON alerts (session_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_triggered_at ON alerts (triggered_at DESC);
 CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts (status);
+CREATE INDEX IF NOT EXISTS idx_alerts_status_triggered_at ON alerts (status, triggered_at DESC);
 
 -- Ingestion audit
 CREATE INDEX IF NOT EXISTS idx_ingestion_runs_started_at ON ingestion_runs (started_at DESC);
