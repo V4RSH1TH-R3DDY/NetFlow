@@ -89,6 +89,12 @@ def copy_valid_rows_to_staging(cur: psycopg.Cursor, run_id: int, valid_rows: pd.
         working.insert(0, "run_id", run_id)
         working["validation_errors"] = None
 
+        # Ensure nullable integer columns serialize as int (not float) in CSV
+        for int_col in ("src_port", "dst_port", "packet_size"):
+            if int_col in working.columns:
+                converted = [int(v) if pd.notna(v) else "" for v in working[int_col]]
+                working = working.assign(**{int_col: converted})
+
         csv_buffer = io.StringIO()
         working.to_csv(csv_buffer, index=False, header=False)
         csv_buffer.seek(0)

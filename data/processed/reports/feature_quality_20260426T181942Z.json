@@ -1,0 +1,186 @@
+{
+  "generated_at": "2026-04-26T18:19:42.833688+00:00",
+  "total_sessions": 234,
+  "labeled_sessions": 0,
+  "unlabeled_sessions": 234,
+  "feature_completeness_score": 1.0,
+  "null_rates": {
+    "duration_sec": 0.0,
+    "total_bytes": 0.0,
+    "total_packets": 0.0,
+    "bytes_per_sec": 0.0,
+    "packets_per_sec": 0.0,
+    "iat_mean": 0.0,
+    "iat_std": 0.0,
+    "iat_min": 0.0,
+    "iat_max": 0.0,
+    "fwd_bwd_byte_ratio": 0.0,
+    "payload_entropy": 0.0,
+    "unique_dst_ports": 0.0,
+    "avg_packet_size": 0.0,
+    "packet_size_std": 0.0,
+    "has_syn": 0.0,
+    "has_fin": 0.0,
+    "has_rst": 0.0
+  },
+  "outlier_rates_3sigma": {
+    "duration_sec": 0.0043,
+    "total_bytes": 0.0214,
+    "total_packets": 0.0214,
+    "bytes_per_sec": 0.0256,
+    "packets_per_sec": 0.0128,
+    "iat_mean": 0.0128,
+    "iat_std": 0.0043,
+    "iat_min": 0.0085,
+    "iat_max": 0.0128,
+    "fwd_bwd_byte_ratio": 0.0085,
+    "payload_entropy": 0.0256,
+    "unique_dst_ports": 0.0,
+    "avg_packet_size": 0.0,
+    "packet_size_std": 0.0299
+  },
+  "feature_statistics": {
+    "duration_sec": {
+      "count": 234,
+      "mean": 1.2731,
+      "std": 17.2527,
+      "min": 0.0,
+      "max": 263.7863,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0
+    },
+    "total_bytes": {
+      "count": 234,
+      "mean": 1310.8889,
+      "std": 3157.2385,
+      "min": 44.0,
+      "max": 38171.0,
+      "median": 1500.0,
+      "p25": 128.0,
+      "p75": 1500.0
+    },
+    "total_packets": {
+      "count": 234,
+      "mean": 1.8803,
+      "std": 4.8322,
+      "min": 1.0,
+      "max": 63.0,
+      "median": 1.0,
+      "p25": 1.0,
+      "p75": 1.0
+    },
+    "bytes_per_sec": {
+      "count": 234,
+      "mean": 1671.0564,
+      "std": 3846.7406,
+      "min": 0.0,
+      "max": 26797.1988,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0
+    },
+    "packets_per_sec": {
+      "count": 234,
+      "mean": 13.417,
+      "std": 33.9346,
+      "min": 0.0,
+      "max": 324.0966,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0
+    },
+    "iat_mean": {
+      "count": 234,
+      "mean": 0.0755,
+      "std": 0.537,
+      "min": 0.0,
+      "max": 5.0,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0
+    },
+    "iat_std": {
+      "count": 234,
+      "mean": 0.0128,
+      "std": 0.1431,
+      "min": 0.0,
+      "max": 2.1607,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0
+    },
+    "iat_min": {
+      "count": 234,
+      "mean": 0.0526,
+      "std": 0.4608,
+      "min": 0.0,
+      "max": 5.0,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0
+    },
+    "iat_max": {
+      "count": 234,
+      "mean": 0.0964,
+      "std": 0.6938,
+      "min": 0.0,
+      "max": 7.9419,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0
+    },
+    "fwd_bwd_byte_ratio": {
+      "count": 234,
+      "mean": 4.4242,
+      "std": 43.3623,
+      "min": 0.0,
+      "max": 512.0,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0759
+    },
+    "payload_entropy": {
+      "count": 234,
+      "mean": 0.2509,
+      "std": 0.7723,
+      "min": 0.0,
+      "max": 5.9138,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0
+    },
+    "unique_dst_ports": {
+      "count": 234,
+      "mean": 1.0684,
+      "std": 0.4854,
+      "min": 0.0,
+      "max": 2.0,
+      "median": 1.0,
+      "p25": 1.0,
+      "p75": 1.0
+    },
+    "avg_packet_size": {
+      "count": 234,
+      "mean": 838.7935,
+      "std": 691.2479,
+      "min": 44.0,
+      "max": 1500.0,
+      "median": 1500.0,
+      "p25": 64.0,
+      "p75": 1500.0
+    },
+    "packet_size_std": {
+      "count": 234,
+      "mean": 32.7965,
+      "std": 88.667,
+      "min": 0.0,
+      "max": 474.2453,
+      "median": 0.0,
+      "p25": 0.0,
+      "p75": 0.0
+    }
+  },
+  "class_distribution": {},
+  "class_imbalance_ratio": null
+}
