@@ -38,4 +38,5 @@ if [[ "$status" != "healthy" ]]; then
 fi
 
 echo "Starting backend..."
+export PYTHONPATH=.
 exec .venv/bin/python backend/app.py

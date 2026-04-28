@@ -8,10 +8,10 @@ export default {
     extend: {
       colors: {
         dark: {
-          bg: '#050505',
-          panel: '#111111',
-          border: '#222222',
-          surface: '#151515',
+          bg: 'rgb(var(--color-dark-bg) / <alpha-value>)',
+          panel: 'rgb(var(--color-dark-panel) / <alpha-value>)',
+          border: 'rgb(var(--color-dark-border) / <alpha-value>)',
+          surface: 'rgb(var(--color-dark-surface) / <alpha-value>)',
         },
         neon: {
           cyan: '#00f7ff',

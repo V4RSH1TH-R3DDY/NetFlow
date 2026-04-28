@@ -1,0 +1,19 @@
+# Feature Importances
+
+- **unique_dst_ports**: 0.2594
+- **packets_per_sec**: 0.1929
+- **avg_packet_size**: 0.0864
+- **total_bytes**: 0.0835
+- **iat_mean**: 0.0633
+- **packet_size_std**: 0.0508
+- **iat_max**: 0.0493
+- **duration_sec**: 0.0472
+- **fwd_bwd_byte_ratio**: 0.0412
+- **total_packets**: 0.0398
+- **bytes_per_sec**: 0.0225
+- **has_rst**: 0.0214
+- **iat_min**: 0.0200
+- **iat_std**: 0.0197
+- **has_fin**: 0.0016
+- **has_syn**: 0.0011
+- **payload_entropy**: 0.0000

@@ -1,0 +1,33 @@
+{
+    "version": "v1_20260428094418",
+    "trained_at": "2026-04-28T09:44:18.579397+00:00",
+    "metrics": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "auc_roc": 1.0
+    },
+    "params": {
+        "max_depth": null,
+        "min_samples_split": 2,
+        "n_estimators": 50
+    },
+    "feature_cols": [
+        "duration_sec",
+        "total_bytes",
+        "total_packets",
+        "bytes_per_sec",
+        "packets_per_sec",
+        "iat_mean",
+        "iat_std",
+        "iat_min",
+        "iat_max",
+        "fwd_bwd_byte_ratio",
+        "payload_entropy",
+        "unique_dst_ports",
+        "avg_packet_size",
+        "packet_size_std",
+        "has_syn",
+        "has_fin",
+        "has_rst"
+    ]
+}

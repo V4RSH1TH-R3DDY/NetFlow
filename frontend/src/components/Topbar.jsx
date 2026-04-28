@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cpu, Wifi, AlertTriangle, Monitor } from 'lucide-react';
+import { Cpu, Wifi, AlertTriangle, Monitor, Sun, Moon } from 'lucide-react';
 import { api } from '../lib/api';
 
 const Topbar = () => {
@@ -10,10 +10,22 @@ const Topbar = () => {
     activeAlerts: 0,
   });
 
+  const [theme, setTheme] = useState('dark');
+
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
+    const stored = localStorage.getItem('netflow-theme') || 'dark';
+    setTheme(stored);
+    document.documentElement.setAttribute('data-theme', stored);
     return () => clearInterval(timer);
   }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('netflow-theme', nextTheme);
+    document.documentElement.setAttribute('data-theme', nextTheme);
+  };
 
   useEffect(() => {
     const loadTopbarStats = async () => {
@@ -100,6 +112,12 @@ const Topbar = () => {
               {time.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })}
             </div>
           </div>
+          <button
+            onClick={toggleTheme}
+            className="p-2 border border-dark-border rounded-lg bg-dark-bg text-gray-500 hover:text-white hover:border-white/20 transition-all shadow-skeuo-beveled"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           <div className="w-10 h-10 rounded-full border border-dark-border bg-dark-bg p-1 shadow-skeuo-beveled">
             <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-700 to-black flex items-center justify-center overflow-hidden border border-white/5">
               <Monitor className="w-5 h-5 text-gray-400" />

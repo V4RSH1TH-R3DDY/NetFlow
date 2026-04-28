@@ -7,6 +7,9 @@ import Alerts from './pages/Alerts';
 import Analytics from './pages/Analytics';
 import Network from './pages/Network';
 import Settings from './pages/Settings';
+import Sessions from './pages/Sessions';
+import Predictions from './pages/Predictions';
+import Ingestion from './pages/Ingestion';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -15,9 +18,12 @@ function App() {
     switch (activeTab) {
       case 'dashboard': return <Dashboard />;
       case 'packets': return <Packets />;
+      case 'sessions': return <Sessions />;
       case 'alerts': return <Alerts />;
       case 'analytics': return <Analytics />;
+      case 'predictions': return <Predictions />;
       case 'network': return <Network />;
+      case 'ingestion': return <Ingestion />;
       case 'settings': return <Settings />;
       default: return <Dashboard />;
     }

@@ -1,5 +1,6 @@
 .PHONY: venv install run-backend lint-python ingest db-up db-down db-maintenance \
-       sessionize extract-features quality-report label-dist test generate-synthetic
+       sessionize extract-features quality-report label-dist test generate-synthetic run-inference run-streaming-consumer \
+       clear-predictions clear-packets
 
 # Phase 0: Environment setup
 venv:
@@ -42,9 +43,22 @@ label-dist:
 generate-synthetic:
 	.venv/bin/python ml/generate_synthetic.py
 
+live-attack:
+	.venv/bin/python scripts/live_attack_simulator.py
+
+critical-attack:
+	.venv/bin/python scripts/critical_alert_demo.py
+
+
 # Phase 5: Backend
 run-backend:
 	.venv/bin/python backend/app.py
+
+run-inference:
+	.venv/bin/python ml/run_inference.py $(if $(VERSION),--version $(VERSION))
+
+run-streaming-consumer:
+	.venv/bin/python streaming/consumer.py
 
 # Testing
 test:
@@ -58,6 +72,11 @@ db-up:
 db-down:
 	docker compose down
 
-# Utility: Run maintenance SQL
-db-maintenance:
-	docker compose exec postgres psql -U $${POSTGRES_USER:-varshith} -d $${POSTGRES_DB:-netflow} -f /docker-entrypoint-initdb.d/01-schema.sql
+# Utility: Clear all predictions and alerts (to restart inference)
+clear-predictions:
+	PGPASSWORD=budugu123 psql -h localhost -p 5433 -U varshith -d netflow -c "TRUNCATE predictions, alerts CASCADE;"
+
+# Utility: Delete all packets (and dependent sessions/features/predictions/alerts)
+clear-packets:
+	PGPASSWORD=budugu123 psql -h localhost -p 5433 -U varshith -d netflow -c "TRUNCATE packets CASCADE;"
+

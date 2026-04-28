@@ -8,6 +8,8 @@ venv/
 .mypy_cache/
 .coverage
 htmlcov/
+archive/
+*.csv
 
 # Environment
 .env

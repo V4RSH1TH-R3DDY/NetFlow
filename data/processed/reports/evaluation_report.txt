@@ -1,0 +1,54 @@
+Accuracy: 0.9258
+F1: 0.9071
+Precision: 0.9212
+Recall: 0.9258
+AUC-ROC: 0.9831
+
+                          precision    recall  f1-score   support
+
+                  BENIGN       0.95      0.99      0.97     63574
+                     BOT       1.00      1.00      1.00      2065
+        BRUTE FORCE -WEB       1.00      0.67      0.80         3
+        DDOS ATTACK-HOIC       0.69      0.99      0.81      4929
+    DDOS ATTACK-LOIC-UDP       1.00      1.00      1.00        13
+  DDOS ATTACKS-LOIC-HTTP       0.96      0.98      0.97      1071
+   DOS ATTACKS-GOLDENEYE       0.94      0.86      0.90       287
+        DOS ATTACKS-HULK       0.92      0.34      0.50      3308
+DOS ATTACKS-SLOWHTTPTEST       0.78      0.52      0.63      1008
+   DOS ATTACKS-SLOWLORIS       1.00      0.99      0.99        85
+          FTP-BRUTEFORCE       0.72      0.89      0.80      1396
+           INFILTERATION       0.62      0.05      0.09      2945
+          SSH-BRUTEFORCE       1.00      1.00      1.00      1352
+
+                accuracy                           0.93     82036
+               macro avg       0.89      0.79      0.81     82036
+            weighted avg       0.92      0.93      0.91     82036
+
+
+Confusion Matrix:
+[[63211     1     0   212     0     8     5    45     1     0     0    91
+      0]
+ [    7  2058     0     0     0     0     0     0     0     0     0     0
+      0]
+ [    1     0     2     0     0     0     0     0     0     0     0     0
+      0]
+ [   10     0     0  4870     0     0     0    49     0     0     0     0
+      0]
+ [    0     0     0     0    13     0     0     0     0     0     0     0
+      0]
+ [   11     0     0     0     0  1048    12     0     0     0     0     0
+      0]
+ [    1     0     0     0     0    36   248     2     0     0     0     0
+      0]
+ [  175     0     0  1993     0     0     0  1140     0     0     0     0
+      0]
+ [    0     0     0     0     0     0     0     0   529     0   479     0
+      0]
+ [    1     0     0     0     0     0     0     0     0    84     0     0
+      0]
+ [    0     0     0     0     0     0     0     0   149     0  1247     0
+      0]
+ [ 2788     2     0     5     0     0     0     1     0     0     0   149
+      0]
+ [    0     0     0     0     0     0     0     0     0     0     0     0
+   1352]]

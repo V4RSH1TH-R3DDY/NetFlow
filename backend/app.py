@@ -3,13 +3,20 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
 from typing import Any
 
 import psycopg
-from flask import Flask, request
+import threading
+from flask import Flask, request, Response
 
+from ml.inference import get_model
 
 app = Flask(__name__)
+
+
+
+
 
 REQUEST_SCHEMAS: dict[str, Any] = {
     "packet_create": {
@@ -610,15 +617,58 @@ def predict() -> tuple[dict[str, Any], int]:
 
                 _, packet_count, total_bytes, protocol = session_row
 
-                predicted_label_code = "BENIGN"
-                confidence = 0.15
+                cur.execute(
+                    """
+                    SELECT duration_sec, total_bytes, total_packets, bytes_per_sec, packets_per_sec,
+                           iat_mean, iat_std, iat_min, iat_max, fwd_bwd_byte_ratio, payload_entropy,
+                           unique_dst_ports, avg_packet_size, packet_size_std, has_syn, has_fin, has_rst
+                    FROM session_features
+                    WHERE session_id = %s
+                    """,
+                    [session_id],
+                )
+                feature_row = cur.fetchone()
+                
+                if feature_row is None:
+                    # Fallback to rules if no features are extracted yet
+                    predicted_label_code = "BENIGN"
+                    confidence = 0.15
+                    model_version = "baseline-rules-v1"
+                    is_anomaly = False
 
-                if (packet_count or 0) >= 1000 or (total_bytes or 0) >= 5_000_000:
-                    predicted_label_code = "DOS"
-                    confidence = 0.92
-                elif str(protocol).upper() == "ICMP" and (packet_count or 0) > 300:
-                    predicted_label_code = "PROBE"
-                    confidence = 0.81
+                    if (packet_count or 0) >= 1000 or (total_bytes or 0) >= 5_000_000:
+                        predicted_label_code = "DOS"
+                        confidence = 0.92
+                    elif str(protocol).upper() == "ICMP" and (packet_count or 0) > 300:
+                        predicted_label_code = "PROBE"
+                        confidence = 0.81
+                        
+                    features_json = json.dumps(
+                        {
+                            "packet_count": packet_count,
+                            "total_bytes": total_bytes,
+                            "protocol": protocol,
+                            "strategy": "baseline_rules",
+                        }
+                    )
+                else:
+                    cols = [
+                        "duration_sec", "total_bytes", "total_packets", "bytes_per_sec", "packets_per_sec",
+                        "iat_mean", "iat_std", "iat_min", "iat_max", "fwd_bwd_byte_ratio", "payload_entropy",
+                        "unique_dst_ports", "avg_packet_size", "packet_size_std", "has_syn", "has_fin", "has_rst"
+                    ]
+                    features = dict(zip(cols, feature_row))
+                    model = get_model()
+                    pred_result = model.predict(features)
+                    
+                    predicted_label_code = pred_result["predicted_label"]
+                    confidence = pred_result["confidence"]
+                    model_version = pred_result["model_version"]
+                    is_anomaly = pred_result["is_anomaly"]
+                    
+                    # Store anomaly info in features json
+                    features["is_anomaly"] = is_anomaly
+                    features_json = json.dumps(features)
 
                 cur.execute(
                     """
@@ -643,14 +693,7 @@ def predict() -> tuple[dict[str, Any], int]:
                         session_id,
                         confidence,
                         model_version,
-                        json.dumps(
-                            {
-                                "packet_count": packet_count,
-                                "total_bytes": total_bytes,
-                                "protocol": protocol,
-                                "strategy": "baseline_rules",
-                            }
-                        ),
+                        features_json,
                     ],
                 )
                 prediction_row = cur.fetchone()
@@ -670,6 +713,198 @@ def predict() -> tuple[dict[str, Any], int]:
         message="Prediction persisted",
     )
 
+
+@app.get("/ingestion-runs")
+def get_ingestion_runs() -> tuple[dict[str, Any], int]:
+    try:
+        limit, offset = _parse_pagination()
+    except ValueError as exc:
+        return _error("invalid_query", str(exc), 400)
+
+    query = (
+        "SELECT run_id, source_name, source_path, started_at, finished_at, rows_received, rows_inserted, "
+        "rows_rejected, status, error_message "
+        "FROM ingestion_runs "
+        "ORDER BY started_at DESC "
+        "LIMIT %s OFFSET %s"
+    )
+    
+    try:
+        rows = _fetch_all(query, [limit, offset])
+    except Exception as exc:
+        return _db_unavailable_response(exc)
+
+    data = [
+        {
+            "run_id": row[0],
+            "source_name": row[1],
+            "source_path": row[2],
+            "started_at": row[3].isoformat() if row[3] else None,
+            "finished_at": row[4].isoformat() if row[4] else None,
+            "rows_received": row[5],
+            "rows_inserted": row[6],
+            "rows_rejected": row[7],
+            "status": row[8],
+            "error_message": row[9],
+        }
+        for row in rows
+    ]
+    return _ok(data, meta={"limit": limit, "offset": offset, "returned": len(data)})
+
+
+@app.get("/packets/count")
+def get_packets_count() -> tuple[dict[str, Any], int]:
+    query = "SELECT COUNT(*) FROM packets"
+    try:
+        rows = _fetch_all(query, [])
+    except Exception as exc:
+        return _db_unavailable_response(exc)
+        
+    return _ok({"count": rows[0][0] if rows else 0})
+
+
+@app.get("/alerts/<int:alert_id>")
+def get_alert(alert_id: int) -> tuple[dict[str, Any], int]:
+    query = (
+        "SELECT alert_id, session_id, prediction_id, alert_type, severity, status, rule_name, description, "
+        "triggered_at, acknowledged_at "
+        "FROM alerts "
+        "WHERE alert_id = %s"
+    )
+    try:
+        rows = _fetch_all(query, [alert_id])
+    except Exception as exc:
+        return _db_unavailable_response(exc)
+        
+    if not rows:
+        return _error("not_found", f"Alert {alert_id} not found", 404)
+        
+    row = rows[0]
+    data = {
+        "alert_id": row[0],
+        "session_id": row[1],
+        "prediction_id": row[2],
+        "alert_type": row[3],
+        "severity": row[4],
+        "status": row[5],
+        "rule_name": row[6],
+        "description": row[7],
+        "triggered_at": row[8].isoformat() if row[8] else None,
+        "acknowledged_at": row[9].isoformat() if row[9] else None,
+    }
+    
+    # Try fetching session details
+    if data["session_id"]:
+        session_query = "SELECT src_ip::text, dst_ip::text, src_port, dst_port, protocol FROM sessions WHERE session_id = %s"
+        try:
+            s_rows = _fetch_all(session_query, [data["session_id"]])
+            if s_rows:
+                s_row = s_rows[0]
+                data["session_details"] = {
+                    "src_ip": s_row[0],
+                    "dst_ip": s_row[1],
+                    "src_port": s_row[2],
+                    "dst_port": s_row[3],
+                    "protocol": s_row[4],
+                }
+        except Exception:
+            pass
+            
+    # Try fetching prediction details
+    if data["prediction_id"]:
+        pred_query = (
+            "SELECT p.confidence, p.model_version, al.label_code "
+            "FROM predictions p "
+            "LEFT JOIN attack_labels al ON al.label_id = p.predicted_label_id "
+            "WHERE p.prediction_id = %s"
+        )
+        try:
+            p_rows = _fetch_all(pred_query, [data["prediction_id"]])
+            if p_rows:
+                p_row = p_rows[0]
+                data["prediction_details"] = {
+                    "confidence": float(p_row[0]) if p_row[0] is not None else None,
+                    "model_version": p_row[1],
+                    "predicted_label": p_row[2],
+                }
+        except Exception:
+            pass
+
+    return _ok(data)
+
+
+@app.get("/stream/metrics")
+def stream_metrics():
+    def generate():
+        prev_count = None
+        db_url = _database_url()
+        while True:
+            try:
+                with psycopg.connect(db_url, autocommit=True) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT COUNT(*) FROM packets")
+                        packet_count = cur.fetchone()[0]
+                        
+                        # Calculate PPS by comparing with previous poll
+                        pps = 0
+                        if prev_count is not None:
+                            pps = max(0, packet_count - prev_count)
+                        prev_count = packet_count
+                        
+                        # Active sessions based on recent packet activity
+                        cur.execute("SELECT COUNT(DISTINCT (src_ip, dst_ip)) FROM packets WHERE captured_at >= NOW() - INTERVAL '2 minutes'")
+                        active_sessions = cur.fetchone()[0]
+                        
+                        cur.execute("SELECT COUNT(*) FROM alerts WHERE status = 'open'")
+                        open_alerts = cur.fetchone()[0]
+                        
+                        cur.execute("SELECT MAX(captured_at) FROM packets")
+                        last_packet_time = cur.fetchone()[0]
+                        
+                        data = {
+                            "packet_count": packet_count,
+                            "active_sessions": active_sessions,
+                            "open_alerts": open_alerts,
+                            "last_ingestion": last_packet_time.isoformat() if last_packet_time else None,
+                            "pps": pps
+                        }
+                        yield f"data: {json.dumps(data)}\n\n"
+            except Exception as e:
+                print(f"Error in metrics stream: {e}")
+            time.sleep(1)
+            
+    return Response(generate(), mimetype="text/event-stream", headers={"Cache-Control": "no-cache", "Connection": "keep-alive"})
+
+@app.get("/stream/alerts")
+def stream_alerts():
+    def generate():
+        last_alert_id = -1
+        while True:
+            try:
+                with psycopg.connect(_database_url()) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT alert_id, alert_type, severity, description FROM alerts WHERE alert_id > %s ORDER BY alert_id ASC",
+                            (last_alert_id,)
+                        )
+                        rows = cur.fetchall()
+                        if rows:
+                            for row in rows:
+                                data = {
+                                    "alert_id": row[0],
+                                    "alert_type": row[1],
+                                    "severity": row[2],
+                                    "description": row[3]
+                                }
+                                yield f"data: {json.dumps(data)}\n\n"
+                                last_alert_id = row[0]
+                        else:
+                            yield ": keepalive\n\n"
+            except Exception as e:
+                print(f"Error in alerts stream: {e}")
+            time.sleep(5)
+            
+    return Response(generate(), mimetype="text/event-stream", headers={"Cache-Control": "no-cache", "Connection": "keep-alive"})
 
 def main() -> None:
     host = os.getenv("BACKEND_HOST", "0.0.0.0")

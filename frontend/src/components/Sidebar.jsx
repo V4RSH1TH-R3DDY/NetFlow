@@ -1,13 +1,16 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Activity, Bell, PieChart, Settings, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, Activity, Bell, PieChart, Settings, ShieldAlert, BrainCircuit, DatabaseZap } from 'lucide-react';
 
 const navItems = [
   { id: 'dashboard', label: 'DASHBOARD', icon: LayoutDashboard },
   { id: 'packets', label: 'PACKETS', icon: Activity },
+  { id: 'sessions', label: 'SESSIONS', icon: Activity },
   { id: 'alerts', label: 'ALERTS', icon: Bell },
   { id: 'analytics', label: 'ANALYTICS', icon: PieChart },
+  { id: 'predictions', label: 'PREDICTIONS', icon: BrainCircuit },
   { id: 'network', label: 'NETWORK', icon: Activity },
+  { id: 'ingestion', label: 'INGESTION', icon: DatabaseZap },
   { id: 'settings', label: 'SETTINGS', icon: Settings },
 ];
 

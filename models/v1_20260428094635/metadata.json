@@ -1,0 +1,103 @@
+{
+    "version": "v1_20260428094635",
+    "trained_at": "2026-04-28T09:46:35.283458+00:00",
+    "metrics": {
+        "accuracy": 1.0,
+        "f1": 1.0,
+        "auc_roc": 1.0
+    },
+    "params": {
+        "max_depth": null,
+        "min_samples_split": 2,
+        "n_estimators": 50
+    },
+    "feature_cols": [
+        "duration_sec",
+        "total_bytes",
+        "total_packets",
+        "bytes_per_sec",
+        "packets_per_sec",
+        "iat_mean",
+        "iat_std",
+        "iat_min",
+        "iat_max",
+        "fwd_bwd_byte_ratio",
+        "payload_entropy",
+        "unique_dst_ports",
+        "avg_packet_size",
+        "packet_size_std",
+        "has_syn",
+        "has_fin",
+        "has_rst"
+    ],
+    "drift_baseline": {
+        "duration_sec": {
+            "mean": 0.1713753926380368,
+            "std": 0.848614993925421
+        },
+        "total_bytes": {
+            "mean": 1187.7423312883436,
+            "std": 2059.783809190763
+        },
+        "total_packets": {
+            "mean": 1.6503067484662577,
+            "std": 2.86428355364739
+        },
+        "bytes_per_sec": {
+            "mean": 1601.7165213984863,
+            "std": 3748.510679069309
+        },
+        "packets_per_sec": {
+            "mean": 12.958077350227775,
+            "std": 36.28006066728457
+        },
+        "iat_mean": {
+            "mean": 0.0752498247067753,
+            "std": 0.5519990462766253
+        },
+        "iat_std": {
+            "mean": 0.004072524790082849,
+            "std": 0.025823029600397566
+        },
+        "iat_min": {
+            "mean": 0.07005484662576687,
+            "std": 0.551532313391592
+        },
+        "iat_max": {
+            "mean": 0.08126231288343558,
+            "std": 0.5549541879511988
+        },
+        "fwd_bwd_byte_ratio": {
+            "mean": 3.6761468487735716,
+            "std": 40.37370054767161
+        },
+        "payload_entropy": {
+            "mean": 0.23665493955232686,
+            "std": 0.7105059953398927
+        },
+        "unique_dst_ports": {
+            "mean": 1.0797546012269938,
+            "std": 0.4578747886963856
+        },
+        "avg_packet_size": {
+            "mean": 851.5772154445864,
+            "std": 690.9687756267193
+        },
+        "packet_size_std": {
+            "mean": 32.908037815803745,
+            "std": 90.99189449254948
+        },
+        "has_syn": {
+            "mean": 0.7852760736196319,
+            "std": 0.41189611671780113
+        },
+        "has_fin": {
+            "mean": 0.03067484662576687,
+            "std": 0.1729665950563217
+        },
+        "has_rst": {
+            "mean": 0.0,
+            "std": 0.0
+        }
+    }
+}

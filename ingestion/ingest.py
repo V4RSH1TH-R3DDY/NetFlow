@@ -115,23 +115,29 @@ def insert_rejected_rows(cur: psycopg.Cursor, run_id: int, rejected_rows: pd.Dat
         return
 
     records = []
+    def _clean(v):
+        if isinstance(v, (list, tuple, dict)): return v
+        if pd.isna(v): return None
+        if hasattr(v, 'item'): return v.item() # Handle numpy/pandas types
+        return v
+
     for _, row in rejected_rows.iterrows():
         records.append(
             (
                 run_id,
-                row["captured_at"],
-                row["fingerprint"],
-                row["src_ip"],
-                row["dst_ip"],
-                None if pd.isna(row["src_port"]) else int(row["src_port"]),
-                None if pd.isna(row["dst_port"]) else int(row["dst_port"]),
-                row["protocol"],
-                None if pd.isna(row["packet_size"]) else int(row["packet_size"]),
-                row["tcp_flags"],
-                row["payload_hash"],
-                row["raw_record"],
+                _clean(row["captured_at"]),
+                _clean(row["fingerprint"]),
+                _clean(row["src_ip"]),
+                _clean(row["dst_ip"]),
+                _clean(row["src_port"]),
+                _clean(row["dst_port"]),
+                _clean(row["protocol"]),
+                _clean(row["packet_size"]),
+                _clean(row["tcp_flags"]),
+                _clean(row["payload_hash"]),
+                _clean(row["raw_record"]),
                 False,
-                row["validation_errors"],
+                _clean(row["validation_errors"]),
             )
         )
 
