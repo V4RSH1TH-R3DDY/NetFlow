@@ -1,47 +1,34 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 
 const Modal = ({ isOpen, onClose, title, children }) => {
+  if (!isOpen) return null;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        onClick={onClose}
+        className="fixed inset-0 bg-black/70 backdrop-blur-none"
+      />
+
+      {/* Modal Dialog */}
+      <div className="relative w-full max-w-md bg-dark-panel border border-dark-border shadow-2xl z-10 font-mono">
+        <div className="box-panel-header px-4 py-3">
+          <span className="text-xs font-semibold text-zinc-100">{title}</span>
+          <button 
             onClick={onClose}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100]"
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg z-[101]"
+            className="p-1 text-zinc-400 hover:text-zinc-100"
           >
-            <div className="bg-dark-panel rounded-2xl border border-white/10 shadow-2xl overflow-hidden relative">
-              {/* Bezel Overlay */}
-              <div className="absolute inset-0 pointer-events-none border border-white/5 rounded-2xl" />
-              
-              <div className="p-6 border-b border-dark-border flex justify-between items-center bg-dark-surface/50">
-                <h3 className="text-xs font-bold text-white tracking-[0.2em] uppercase">{title}</h3>
-                <button 
-                  onClick={onClose}
-                  className="p-1 hover:bg-white/5 rounded-lg transition-colors text-gray-500 hover:text-white"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="p-8">
-                {children}
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-4">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 };
 

@@ -1,26 +1,21 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Download, Filter, ChevronDown, ChevronUp } from 'lucide-react';
+import { Layers, Download, Search, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../lib/api';
 
 const Sessions = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [protocolFilter, setProtocolFilter] = useState('');
   const [page, setPage] = useState(0);
-  const pageSize = 20;
-
+  const pageSize = 25;
   const [expandedId, setExpandedId] = useState(null);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['sessions', page, searchTerm, protocolFilter],
     queryFn: async () => {
       const params = { limit: pageSize, offset: page * pageSize };
       if (protocolFilter) params.protocol = protocolFilter;
-      // Simple search assumes IP search for demo purposes
-      if (searchTerm) {
-         if (searchTerm.includes('.')) params.src_ip = searchTerm; 
-         // Could enhance backend to support full text search or 'any_ip' search
-      }
+      if (searchTerm && searchTerm.includes('.')) params.src_ip = searchTerm;
       return api.listSessions(params);
     },
     keepPreviousData: true,
@@ -49,138 +44,120 @@ const Sessions = () => {
   };
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <h2 className="text-2xl font-bold text-white tracking-widest flex items-center gap-3 uppercase">
-            SESSIONS_MONITOR
-          </h2>
-          <p className="text-[10px] text-gray-500 font-mono tracking-widest mt-1">STATEFUL_FLOW_TRACKING</p>
+    <div className="space-y-4 font-mono text-xs">
+      {/* Control Box */}
+      <div className="box-panel px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Layers className="w-4 h-4 text-cyan-400" />
+          <span className="font-semibold text-zinc-100 uppercase">SESSION_FLOW_MONITOR</span>
+          <span className="text-zinc-500">({sessions.length} ACTIVE)</span>
         </div>
-        <button 
-          onClick={handleExportCSV}
-          className="flex items-center gap-2 px-4 py-2 bg-dark-panel border border-dark-border rounded-xl text-[10px] font-bold text-gray-400 hover:text-white transition-all shadow-skeuo-beveled"
-        >
-          <Download className="w-3 h-3" /> EXPORT_CSV
-        </button>
-      </div>
 
-      {error && (
-        <div className="p-3 bg-neon-red/10 border border-neon-red/30 rounded-xl text-[11px] text-neon-red font-mono">
-          {error.message || "Failed to load sessions"}
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 p-4 bg-dark-panel/50 rounded-2xl border border-dark-border shadow-skeuo-pressed">
-        <div className="flex-1 min-w-[300px] relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+        <div className="flex items-center gap-2">
           <input
             type="text"
-            placeholder="SEARCH_BY_IP..."
-            className="w-full bg-dark-bg border border-dark-border rounded-xl py-2 pl-12 pr-4 text-[10px] font-mono text-neon-cyan focus:outline-none focus:border-neon-cyan/50 transition-colors placeholder:text-gray-700 uppercase tracking-widest"
+            placeholder="FILTER IP (e.g. 192.168.1.1)"
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
+            className="bg-dark-surface border border-dark-border px-2.5 py-1 text-zinc-300 placeholder:text-zinc-600 focus:outline-none w-52"
           />
-        </div>
-        <div className="flex gap-2">
-          {['TCP', 'UDP', 'ICMP'].map(p => (
-            <button 
-              key={p} 
-              onClick={() => { setProtocolFilter(protocolFilter === p ? '' : p); setPage(0); }}
-              className={`px-4 py-2 bg-dark-bg border rounded-xl text-[9px] font-bold transition-all uppercase tracking-widest ${
-                protocolFilter === p ? 'border-neon-cyan text-neon-cyan' : 'border-dark-border text-gray-500 hover:border-neon-yellow hover:text-neon-yellow'
-              }`}
-            >
-              {p}
-            </button>
-          ))}
-          <button 
-            onClick={() => { setProtocolFilter(''); setSearchTerm(''); setPage(0); }}
-            className="p-2 bg-dark-bg border border-dark-border rounded-xl text-gray-600 hover:text-white"
-            title="Clear Filters"
+
+          <select
+            value={protocolFilter}
+            onChange={(e) => { setProtocolFilter(e.target.value); setPage(0); }}
+            className="bg-dark-surface border border-dark-border px-2.5 py-1 text-zinc-300 focus:outline-none"
           >
-            <Filter className="w-4 h-4" />
+            <option value="">ALL_PROTO</option>
+            <option value="TCP">TCP</option>
+            <option value="UDP">UDP</option>
+            <option value="ICMP">ICMP</option>
+          </select>
+
+          <button
+            onClick={() => refetch()}
+            className="p-1 border border-dark-border bg-dark-surface text-zinc-400 hover:text-zinc-100"
+            title="Refresh"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={handleExportCSV}
+            className="px-2.5 py-1 border border-dark-border bg-dark-surface hover:bg-zinc-800 text-zinc-300 flex items-center gap-1"
+          >
+            <Download className="w-3.5 h-3.5" /> CSV
           </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 min-h-0 bg-dark-panel rounded-2xl border border-dark-border shadow-skeuo-flat flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-left font-mono text-[11px]">
-            <thead className="sticky top-0 bg-dark-surface z-10">
-              <tr className="text-gray-500 border-b border-dark-border uppercase tracking-widest text-[9px]">
-                <th className="p-4 px-6 w-10"></th>
-                <th className="p-4">ID</th>
-                <th className="p-4">Source_IP</th>
-                <th className="p-4">Destination_IP</th>
-                <th className="p-4">Protocol</th>
-                <th className="p-4">Started</th>
-                <th className="p-4 text-right">Packets</th>
-                <th className="p-4 text-right pr-6">Bytes</th>
+      {error && (
+        <div className="border border-rose-500/30 bg-rose-500/10 p-3 text-rose-400">
+          ERR: {error.message}
+        </div>
+      )}
+
+      {/* Boxed Table */}
+      <div className="box-panel overflow-hidden">
+        <div className="box-panel-header">
+          <span>STATEFUL_CONVERSATIONS</span>
+          <span className="text-[10px] text-zinc-500">PAGE {page + 1}</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-dark-border bg-dark-surface/40 text-[10px] text-zinc-500 uppercase">
+                <th className="py-2 px-3 w-8"></th>
+                <th className="py-2 px-3">ID</th>
+                <th className="py-2 px-3">SOURCE_NODE</th>
+                <th className="py-2 px-3">DEST_NODE</th>
+                <th className="py-2 px-3">PROTO</th>
+                <th className="py-2 px-3">STARTED</th>
+                <th className="py-2 px-3 text-right">PACKETS</th>
+                <th className="py-2 px-3 text-right">VOLUME</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
-              {isLoading ? (
+            <tbody className="divide-y divide-dark-border">
+              {sessions.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-6 text-center text-[11px] text-gray-500 animate-pulse">LOADING_DATA...</td>
-                </tr>
-              ) : sessions.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="p-6 text-center text-[11px] text-gray-500">NO_SESSIONS_FOUND</td>
+                  <td colSpan={8} className="py-8 text-center text-zinc-500">
+                    {isLoading ? "POLLING_SESSIONS..." : "NO_SESSIONS_RECORDED"}
+                  </td>
                 </tr>
               ) : (
-                sessions.map((session) => (
-                  <React.Fragment key={session.session_id}>
-                    <tr 
-                      className={`group hover:bg-neon-cyan/5 transition-colors cursor-pointer ${expandedId === session.session_id ? 'bg-dark-surface/50' : ''}`}
-                      onClick={() => setExpandedId(expandedId === session.session_id ? null : session.session_id)}
+                sessions.map((s) => (
+                  <React.Fragment key={s.session_id}>
+                    <tr
+                      onClick={() => setExpandedId(expandedId === s.session_id ? null : s.session_id)}
+                      className="hover:bg-dark-surface/50 cursor-pointer transition-colors"
                     >
-                      <td className="p-4 px-6 text-gray-600">
-                        {expandedId === session.session_id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <td className="py-2 px-3 text-zinc-500">
+                        {expandedId === s.session_id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                       </td>
-                      <td className="p-4 text-gray-500">{session.session_id}</td>
-                      <td className="p-4 text-neon-cyan font-bold">{session.src_ip}:{session.src_port || '*'}</td>
-                      <td className="p-4 text-white">{session.dst_ip}:{session.dst_port || '*'}</td>
-                      <td className="p-4">
-                        <span className={`px-2 py-0.5 bg-dark-bg border rounded text-[8px] font-bold
-                          ${session.protocol === 'TCP' ? 'border-neon-cyan text-neon-cyan' :
-                            session.protocol === 'UDP' ? 'border-neon-green text-neon-green' :
-                              'border-neon-yellow text-neon-yellow'}
-                        `}>
-                          {session.protocol}
+                      <td className="py-2 px-3 text-zinc-400">#{s.session_id}</td>
+                      <td className="py-2 px-3 text-zinc-200">
+                        {(s.src_ip || '').replace('/32', '')}{s.src_port ? `:${s.src_port}` : ''}
+                      </td>
+                      <td className="py-2 px-3 text-zinc-200">
+                        {(s.dst_ip || '').replace('/32', '')}{s.dst_port ? `:${s.dst_port}` : ''}
+                      </td>
+                      <td className="py-2 px-3">
+                        <span className="px-1 py-0.5 border border-dark-border text-[10px] text-zinc-300">
+                          {s.protocol}
                         </span>
                       </td>
-                      <td className="p-4 text-gray-400">
-                        {session.started_at ? new Date(session.started_at).toLocaleTimeString() : '--'}
+                      <td className="py-2 px-3 text-zinc-400">
+                        {s.started_at ? new Date(s.started_at).toLocaleTimeString() : '--'}
                       </td>
-                      <td className="p-4 text-right text-neon-green">{session.packet_count}</td>
-                      <td className="p-4 text-right pr-6 text-gray-400">{session.total_bytes}</td>
+                      <td className="py-2 px-3 text-right text-emerald-400 font-semibold">{s.packet_count}</td>
+                      <td className="py-2 px-3 text-right text-zinc-400">{s.total_bytes ? `${s.total_bytes} B` : '--'}</td>
                     </tr>
-                    {expandedId === session.session_id && (
-                      <tr className="bg-dark-bg/50 border-b border-dark-border">
-                        <td colSpan={8} className="p-6">
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                            <div>
-                              <span className="block text-[8px] text-gray-500 uppercase tracking-widest mb-1">Flow Hash</span>
-                              <span className="text-[10px] text-white">{session.flow_hash}</span>
-                            </div>
-                            <div>
-                              <span className="block text-[8px] text-gray-500 uppercase tracking-widest mb-1">Started At</span>
-                              <span className="text-[10px] text-white">{session.started_at ? new Date(session.started_at).toLocaleString() : '--'}</span>
-                            </div>
-                            <div>
-                              <span className="block text-[8px] text-gray-500 uppercase tracking-widest mb-1">Ended At</span>
-                              <span className="text-[10px] text-white">{session.ended_at ? new Date(session.ended_at).toLocaleString() : 'ACTIVE'}</span>
-                            </div>
-                            <div>
-                              <span className="block text-[8px] text-gray-500 uppercase tracking-widest mb-1">Avg Packet Size</span>
-                              <span className="text-[10px] text-white">
-                                {session.packet_count > 0 ? Math.round(session.total_bytes / session.packet_count) : 0} B
-                              </span>
-                            </div>
-                          </div>
+                    {expandedId === s.session_id && (
+                      <tr className="bg-dark-surface/30 border-b border-dark-border">
+                        <td colSpan={8} className="p-3 text-[11px] text-zinc-400 space-y-1">
+                          <div><span className="text-zinc-500">FLOW_HASH:</span> {s.flow_hash}</div>
+                          <div><span className="text-zinc-500">STARTED_AT:</span> {s.started_at ? new Date(s.started_at).toLocaleString() : '--'}</div>
+                          <div><span className="text-zinc-500">ENDED_AT:</span> {s.ended_at ? new Date(s.ended_at).toLocaleString() : 'ACTIVE_IN_WINDOW'}</div>
                         </td>
                       </tr>
                     )}
@@ -190,28 +167,25 @@ const Sessions = () => {
             </tbody>
           </table>
         </div>
+      </div>
 
-        {/* Pagination */}
-        <div className="p-4 border-t border-dark-border bg-dark-surface/30 flex justify-between items-center text-[9px] text-gray-600 font-mono tracking-widest uppercase mt-auto">
-          <span>Displayed: {sessions.length}</span>
-          <div className="flex gap-4">
-            <button 
-              onClick={() => setPage(p => Math.max(0, p - 1))}
-              disabled={page === 0 || isLoading}
-              className="hover:text-white disabled:opacity-30 transition-colors"
-            >
-              PREVIOUS
-            </button>
-            <span className="text-white">Page {page + 1}</span>
-            <button 
-              onClick={() => setPage(p => p + 1)}
-              disabled={sessions.length < pageSize || isLoading}
-              className="hover:text-white disabled:opacity-30 transition-colors"
-            >
-              NEXT
-            </button>
-          </div>
-        </div>
+      {/* Pagination */}
+      <div className="flex justify-between items-center text-zinc-500">
+        <button
+          disabled={page === 0}
+          onClick={() => setPage(p => Math.max(0, p - 1))}
+          className="px-3 py-1 border border-dark-border bg-dark-panel hover:bg-dark-surface disabled:opacity-30 disabled:pointer-events-none"
+        >
+          [PREV]
+        </button>
+        <span>PAGE {page + 1}</span>
+        <button
+          disabled={sessions.length < pageSize}
+          onClick={() => setPage(p => p + 1)}
+          className="px-3 py-1 border border-dark-border bg-dark-panel hover:bg-dark-surface disabled:opacity-30 disabled:pointer-events-none"
+        >
+          [NEXT]
+        </button>
       </div>
     </div>
   );

@@ -1,12 +1,11 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
-import { Activity, Shield, Globe, AlertCircle, Clock, Zap, DatabaseZap } from 'lucide-react';
+import { Activity, Shield, Globe, Clock, Radio, ArrowUpRight } from 'lucide-react';
 import StatsCard from '../components/StatsCard';
 import { api } from '../lib/api';
 
 const Dashboard = () => {
-
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard_data'],
     queryFn: async () => {
@@ -24,11 +23,10 @@ const Dashboard = () => {
         api.listAlerts({ limit: 6, status: 'open' }),
         api.topIps({ limit: 5 }),
         api.packetCount(),
-        api.listSessions({ limit: 1 }), // just to get total count
+        api.listSessions({ limit: 1 }),
         api.listIngestionRuns({ limit: 1 })
       ]);
 
-      // Calculate protocol stats from packets (in real app, would be aggregated on backend)
       const allPackets = await api.listPackets({ limit: 500 });
       const protocolCounts = (allPackets || []).reduce((acc, packet) => {
         const key = (packet.protocol || 'OTHER').toUpperCase();
@@ -37,12 +35,12 @@ const Dashboard = () => {
       }, {});
 
       const totalProtos = Object.values(protocolCounts).reduce((sum, count) => sum + count, 0) || 1;
-      const palette = { TCP: '#00f7ff', UDP: '#39ff14', ICMP: '#ff003c', OTHER: '#f4e04d' };
+      const palette = { TCP: '#06b6d4', UDP: '#10b981', ICMP: '#f43f5e', OTHER: '#a1a1aa' };
       const computedProtocols = Object.entries(protocolCounts)
         .map(([name, count]) => ({
           name,
           value: Math.max(1, Math.round((count / totalProtos) * 100)),
-          color: palette[name] || '#f4e04d',
+          color: palette[name] || '#71717a',
         }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 4);
@@ -53,17 +51,16 @@ const Dashboard = () => {
         latestAlerts,
         topIps,
         totalPackets: packetCount?.count || 0,
-        activeSessions: sessionsCount?.meta?.returned || 0, // Mocked as returned count for now
+        activeSessions: sessionsCount?.meta?.returned || 0,
         lastIngestion: ingestions?.[0]?.started_at,
-        protocolStats: computedProtocols.length ? computedProtocols : [{ name: 'NO_DATA', value: 100, color: '#6b7280' }]
+        protocolStats: computedProtocols.length ? computedProtocols : [{ name: 'NO_DATA', value: 100, color: '#3f3f46' }]
       };
     },
-    refetchInterval: 30000, // 30 seconds auto-refresh
+    refetchInterval: 15000,
   });
 
   const [liveMetrics, setLiveMetrics] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
-  const [toasts, setToasts] = useState([]);
   const [liveTraffic, setLiveTraffic] = useState([]);
 
   useEffect(() => {
@@ -71,7 +68,7 @@ const Dashboard = () => {
     const alertsSse = new EventSource('/api/stream/alerts');
 
     metricsSse.onopen = () => setConnectionStatus('connected');
-    metricsSse.onerror = () => setConnectionStatus('error');
+    metricsSse.onerror = () => setConnectionStatus('offline');
 
     metricsSse.onmessage = (e) => {
       try {
@@ -83,24 +80,11 @@ const Dashboard = () => {
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             traffic: parsed.pps || 0,
             rawCount: parsed.packet_count
-          }].slice(-60);
+          }].slice(-30);
           return newData;
         });
       } catch (err) {
         console.error("Metrics SSE parse error", err);
-      }
-    };
-
-    alertsSse.onmessage = (e) => {
-      try {
-        const alert = JSON.parse(e.data);
-        const id = Date.now();
-        setToasts(prev => [...prev, { id, ...alert }]);
-        setTimeout(() => {
-          setToasts(prev => prev.filter(t => t.id !== id));
-        }, 5000);
-      } catch (err) {
-        console.error("Alerts SSE parse error", err);
       }
     };
 
@@ -121,7 +105,7 @@ const Dashboard = () => {
   const displayLastIngestion = liveMetrics?.last_ingestion ?? dashboardData.lastIngestion;
 
   const trafficHistory = useMemo(() => {
-    if (liveTraffic.length > 5) return liveTraffic;
+    if (liveTraffic.length > 3) return liveTraffic;
     return (dashboardData.trends || [])
       .slice()
       .reverse()
@@ -131,205 +115,167 @@ const Dashboard = () => {
       }));
   }, [dashboardData.trends, liveTraffic]);
 
-  const mapSeverity = (severity) => {
-    if (severity >= 4) return 'critical';
-    if (severity >= 2) return 'medium';
-    return 'low';
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <h2 className="text-2xl font-bold text-white tracking-widest flex items-center gap-3">
-            <Activity className="text-neon-cyan" />
-            SYSTEM_OVERVIEW
-          </h2>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-[10px] text-gray-500 font-mono tracking-widest uppercase">REAL_TIME_ANALYSIS_ENGINE_ACTIVE</p>
-            <div className={`w-1.5 h-1.5 rounded-full ${connectionStatus === 'connected' ? 'bg-neon-green shadow-neon-glow-green' : 'bg-neon-red animate-pulse'} `} />
-            <span className="text-[8px] text-gray-600 font-mono uppercase">{connectionStatus}</span>
-          </div>
+    <div className="space-y-4 font-mono">
+      {/* Header bar */}
+      <div className="box-panel px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold tracking-wide text-zinc-100 uppercase">SYSTEM_DASHBOARD</span>
+          <div className="h-3 w-px bg-dark-border" />
+          <span className="text-xs text-zinc-400">STATUS: {connectionStatus.toUpperCase()}</span>
         </div>
         {isLoading && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-dark-surface border border-dark-border rounded text-[10px] font-mono text-neon-cyan uppercase tracking-widest">
-            <div className="w-2 h-2 rounded-full bg-neon-cyan animate-pulse shadow-neon-glow-cyan" />
-            SYNCING_DATA...
-          </div>
+          <span className="text-xs text-zinc-500 animate-pulse">POLLING_DB...</span>
         )}
       </div>
 
       {error && (
-        <div className="p-3 bg-neon-red/10 border border-neon-red/30 rounded-xl text-[11px] text-neon-red font-mono">
-          {error.message || "Failed to load dashboard data"}
+        <div className="border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
+          ERR: {error.message || "Failed to load dashboard telemetry"}
         </div>
       )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatsCard
           title="Total Packets"
           value={new Intl.NumberFormat().format(displayTotalPackets)}
-          subtext="Processed"
+          subtext="Processed count"
           icon={Activity}
-          trend={isLoading ? '...' : '+live'}
-          colorClass="text-neon-cyan"
+          trend="+LIVE"
         />
         <StatsCard
           title="Active Sessions"
           value={new Intl.NumberFormat().format(displayActiveSessions)}
-          subtext="Connected"
+          subtext="Current tracked"
           icon={Globe}
-          trend={isLoading ? '...' : `+${displayActiveSessions}`}
-          colorClass="text-neon-green"
+          trend={`+${displayActiveSessions}`}
         />
         <StatsCard
           title="Open Alerts"
           value={new Intl.NumberFormat().format(displayOpenAlerts)}
-          subtext="Requires Action"
+          subtext="Pending review"
           icon={Shield}
-          trend={displayOpenAlerts > 0 ? "ATTENTION" : "CLEAR"}
-          colorClass={displayOpenAlerts > 0 ? "text-neon-red" : "text-neon-green"}
+          trend={displayOpenAlerts > 0 ? "ACTION_REQ" : "NORMAL"}
         />
         <StatsCard
-          title="Last Ingestion"
+          title="Last Sync"
           value={displayLastIngestion ? new Date(displayLastIngestion).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
-          subtext={displayLastIngestion ? new Date(displayLastIngestion).toLocaleDateString() : '--'}
-          icon={DatabaseZap}
-          trend={isLoading ? '...' : 'SYNCED'}
-          colorClass="text-neon-yellow"
+          subtext={displayLastIngestion ? new Date(displayLastIngestion).toLocaleDateString() : 'NO_DATA'}
+          icon={Clock}
+          trend="UTC"
         />
       </div>
 
-      {/* Main Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Traffic Area Chart */}
-        <div className="lg:col-span-2 bg-dark-panel p-6 rounded-2xl border border-dark-border shadow-skeuo-flat relative">
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-xs font-bold text-white tracking-widest flex items-center gap-2">
-              <Activity className="w-4 h-4 text-neon-cyan" />
-              TRAFFIC_OSCILLOSCOPE
-            </h3>
+      {/* Main Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Traffic Scope */}
+        <div className="lg:col-span-2 box-panel flex flex-col">
+          <div className="box-panel-header">
+            <span>TRAFFIC_OSCILLOSCOPE (PPS)</span>
+            <span className="text-[10px] text-zinc-500">WINDOW: 30S</span>
           </div>
-          <div className="h-[250px] w-full">
+          <div className="p-4 h-60 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trafficHistory}>
-                <defs>
-                  <linearGradient id="colorTraffic" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00f7ff" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#00f7ff" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                <XAxis dataKey="time" stroke="#444" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis stroke="#444" fontSize={10} tickLine={false} axisLine={false} />
+                <CartesianGrid stroke="#27272a" strokeDasharray="2 2" vertical={false} />
+                <XAxis dataKey="time" stroke="#71717a" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="#71717a" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', fontSize: '10px' }}
-                  itemStyle={{ color: '#00f7ff' }}
+                  contentStyle={{ backgroundColor: '#0e0e11', border: '1px solid #27272a', fontSize: '11px', fontFamily: 'monospace' }}
+                  itemStyle={{ color: '#06b6d4' }}
                 />
-                <Area type="monotone" dataKey="traffic" stroke="#00f7ff" fillOpacity={1} fill="url(#colorTraffic)" strokeWidth={2} />
+                <Area type="stepAfter" dataKey="traffic" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.1} strokeWidth={1.5} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Protocol Donut */}
-        <div className="bg-dark-panel p-6 rounded-2xl border border-dark-border shadow-skeuo-flat flex flex-col">
-          <h3 className="text-xs font-bold text-white tracking-widest flex items-center gap-2 mb-4">
-            <Zap className="w-4 h-4 text-neon-yellow" />
-            PROTOCOL_DIST
-          </h3>
-          <div className="flex-1 min-h-[150px] relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={dashboardData.protocolStats}
-                  cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={5}
-                  dataKey="value" stroke="none"
-                >
-                  {dashboardData.protocolStats.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} fillOpacity={0.8} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', fontSize: '10px' }} />
-              </PieChart>
-            </ResponsiveContainer>
+        {/* Protocol Distribution */}
+        <div className="box-panel flex flex-col">
+          <div className="box-panel-header">
+            <span>PROTOCOL_DISTRIBUTION</span>
+            <span className="text-[10px] text-zinc-500">SHARE</span>
           </div>
-          <div className="grid grid-cols-2 gap-2 mt-4">
-            {dashboardData.protocolStats.map((stat) => (
-              <div key={stat.name} className="flex justify-between items-center p-2 bg-dark-bg/50 rounded-lg border border-white/5">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: stat.color }} />
-                  <span className="text-[9px] font-bold text-white uppercase">{stat.name}</span>
+          <div className="p-4 flex-1 flex flex-col justify-between">
+            <div className="h-36 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={dashboardData.protocolStats}
+                    cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={2}
+                    dataKey="value" stroke="#0e0e11" strokeWidth={2}
+                  >
+                    {dashboardData.protocolStats.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: '#0e0e11', border: '1px solid #27272a', fontSize: '11px', fontFamily: 'monospace' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-1.5 border-t border-dark-border pt-3">
+              {dashboardData.protocolStats.map((stat) => (
+                <div key={stat.name} className="flex justify-between items-center text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 inline-block" style={{ backgroundColor: stat.color }} />
+                    <span className="text-zinc-300">{stat.name}</span>
+                  </div>
+                  <span className="text-zinc-500">{stat.value}%</span>
                 </div>
-                <span className="text-[9px] font-mono text-gray-400">{stat.value}%</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top IPs Bar Chart */}
-        <div className="bg-dark-panel p-6 rounded-2xl border border-dark-border shadow-skeuo-flat">
-          <h3 className="text-xs font-bold text-white tracking-widest flex items-center gap-2 mb-6">
-            <Globe className="w-4 h-4 text-neon-green" />
-            TOP_IP_NODES
-          </h3>
-          <div className="h-[200px] w-full">
+      {/* Bottom Grid: Top IPs & Recent Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {/* Top Talker IPs */}
+        <div className="box-panel flex flex-col">
+          <div className="box-panel-header">
+            <span>TOP_TALKER_NODES</span>
+            <span className="text-[10px] text-zinc-500">PACKETS</span>
+          </div>
+          <div className="p-4 h-52">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dashboardData.topIps} layout="vertical" margin={{ top: 0, right: 0, left: 30, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#222" horizontal={false} />
-                <XAxis type="number" stroke="#444" fontSize={10} tickLine={false} axisLine={false} />
-                <YAxis dataKey="ip" type="category" stroke="#888" fontSize={10} tickLine={false} axisLine={false} width={100} tickFormatter={(val) => val.replace('/32', '')} />
-                <Tooltip cursor={{ fill: '#ffffff05' }} contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '8px', fontSize: '10px' }} />
-                <Bar dataKey="packet_count" fill="#39ff14" radius={[0, 4, 4, 0]} barSize={12} />
+              <BarChart data={dashboardData.topIps} layout="vertical" margin={{ top: 0, right: 10, left: 20, bottom: 0 }}>
+                <CartesianGrid stroke="#27272a" strokeDasharray="2 2" horizontal={false} />
+                <XAxis type="number" stroke="#71717a" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis dataKey="ip" type="category" stroke="#a1a1aa" fontSize={10} tickLine={false} axisLine={false} width={100} tickFormatter={(val) => (val || '').replace('/32', '')} />
+                <Tooltip contentStyle={{ backgroundColor: '#0e0e11', border: '1px solid #27272a', fontSize: '11px', fontFamily: 'monospace' }} />
+                <Bar dataKey="packet_count" fill="#10b981" radius={0} barSize={10} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Alerts Preview */}
-        <div className="bg-dark-panel p-6 rounded-2xl border border-dark-border shadow-skeuo-flat flex flex-col">
-          <h3 className="text-xs font-bold text-white tracking-widest flex items-center gap-2 mb-6">
-            <AlertCircle className="w-4 h-4 text-neon-red" />
-            CRITICAL_ALERTS
-          </h3>
-          <div className="space-y-4 flex-1 overflow-auto">
-            {dashboardData.latestAlerts.slice(0, 4).map((alert) => (
-              <div key={alert.alert_id} className="p-3 bg-dark-bg/50 border-l-2 border-neon-red rounded-r-lg hover:bg-dark-bg transition-colors group">
-                <div className="flex justify-between items-start mb-1">
-                  <h4 className="text-[10px] font-bold text-white uppercase tracking-wider">
-                    {(alert.rule_name || alert.alert_type || 'alert').replace(/_/g, ' ')}
-                  </h4>
-                  <span className="text-[8px] text-gray-600 font-mono">
+        {/* Recent Alerts */}
+        <div className="box-panel flex flex-col">
+          <div className="box-panel-header">
+            <span>RECENT_INCIDENTS</span>
+            <span className="text-[10px] text-zinc-500">LIVE</span>
+          </div>
+          <div className="p-2 space-y-1.5 flex-1 overflow-auto max-h-52">
+            {dashboardData.latestAlerts.length === 0 ? (
+              <div className="p-6 text-center text-xs text-zinc-500">NO_ACTIVE_INCIDENTS_DETECTED</div>
+            ) : (
+              dashboardData.latestAlerts.slice(0, 4).map((alert) => (
+                <div key={alert.alert_id} className="p-2 border border-dark-border bg-dark-surface/40 flex items-center justify-between text-xs">
+                  <div>
+                    <div className="font-semibold text-zinc-200">
+                      {(alert.rule_name || alert.alert_type || 'ALERT').toUpperCase()}
+                    </div>
+                    <div className="text-[10px] text-zinc-500 truncate max-w-xs">{alert.description}</div>
+                  </div>
+                  <span className="text-[10px] text-zinc-500">
                     {alert.triggered_at ? new Date(alert.triggered_at).toLocaleTimeString() : '--'}
                   </span>
                 </div>
-                <p className="text-[9px] text-gray-500 line-clamp-1">{alert.description || 'No description'}</p>
-              </div>
-            ))}
-            {dashboardData.latestAlerts.length === 0 && (
-              <div className="h-full flex items-center justify-center text-[10px] text-gray-500 uppercase tracking-widest">
-                NO_ACTIVE_ALERTS
-              </div>
+              ))
             )}
           </div>
         </div>
-      </div>
-      {/* Real-time Toast Overlay */}
-      <div className="fixed bottom-6 right-6 z-50 space-y-3 pointer-events-none">
-        {toasts.map(toast => (
-          <div key={toast.id} className="p-4 bg-dark-panel border border-neon-red shadow-neon-glow-red rounded-xl animate-in slide-in-from-right duration-300 pointer-events-auto max-w-sm">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="text-neon-red w-5 h-5" />
-              <div>
-                <h4 className="text-[10px] font-bold text-white uppercase tracking-wider">CRITICAL_DETECTION</h4>
-                <p className="text-[11px] text-gray-300 font-mono">{toast.alert_type}: {toast.description}</p>
-              </div>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );

@@ -85,7 +85,7 @@ class SessionBuilder:
             return empty_sessions, empty_assignments
 
         df = packets_df.copy()
-        df.loc[:, "captured_at"] = pd.to_datetime(df["captured_at"], utc=True, format="ISO8601")
+        df["captured_at"] = pd.to_datetime(df["captured_at"], utc=True, format="ISO8601")
         df = df.sort_values("captured_at").reset_index(drop=True)
 
         # Build canonical flow key per packet

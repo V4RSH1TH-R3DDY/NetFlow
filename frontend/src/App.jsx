@@ -30,27 +30,17 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen bg-dark-bg text-gray-300 relative overflow-hidden font-sans">
-      {/* Grain Overlay */}
-      <div className="grain-overlay" />
-      
-      {/* Scanline Effect */}
-      <div className="scanline" />
-
-      {/* Sidebar */}
+    <div className="flex h-screen w-screen bg-dark-bg text-zinc-300 font-sans overflow-hidden">
+      {/* Boxed Sidebar */}
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 h-full">
         <Topbar />
-        <main className="flex-1 overflow-auto p-8 relative">
+        <main className="flex-1 overflow-auto p-5 bg-dark-bg/60">
           {renderPage()}
         </main>
       </div>
-
-      {/* Ambient Background Glows */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-neon-cyan/5 blur-[120px] rounded-full -mr-64 -mt-64" />
-      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-neon-red/5 blur-[120px] rounded-full -ml-64 -mb-64" />
     </div>
   );
 }

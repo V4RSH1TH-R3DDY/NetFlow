@@ -1,36 +1,28 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
-const StatsCard = ({ title, value, subtext, icon: Icon, trend, colorClass = "text-neon-cyan" }) => {
+const StatsCard = ({ title, value, subtext, icon: Icon, trend, colorClass = "text-cyan-400" }) => {
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-dark-panel p-6 rounded-2xl border border-dark-border shadow-skeuo-flat relative group overflow-hidden"
-    >
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-[10px] font-bold text-gray-500 tracking-[0.2em] uppercase">{title}</h3>
-          <div className={`text-2xl font-bold mt-1 ${colorClass} drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]`}>
-            {value}
-          </div>
-        </div>
-        <div className="p-3 bg-dark-bg rounded-xl shadow-skeuo-beveled border border-white/5">
-          <Icon className={`w-5 h-5 ${colorClass}`} />
+    <div className="box-panel p-4 flex flex-col justify-between">
+      <div className="flex items-center justify-between text-zinc-400 mb-2">
+        <span className="text-[11px] font-mono uppercase tracking-wider text-zinc-400">{title}</span>
+        <Icon className="w-4 h-4 text-zinc-500" />
+      </div>
+
+      <div className="my-1">
+        <div className="text-2xl font-mono font-bold text-zinc-100 tracking-tight">
+          {value}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mt-4">
+      <div className="flex items-center justify-between pt-2 border-t border-dark-border text-[10px] font-mono text-zinc-500 mt-2">
+        <span className="uppercase">{subtext}</span>
         {trend && (
-          <span className={`text-[10px] font-bold ${trend.startsWith('+') ? 'text-neon-green' : 'text-neon-red'}`}>
+          <span className={trend.startsWith('+') ? 'text-emerald-400' : 'text-zinc-400'}>
             {trend}
           </span>
         )}
-        <span className="text-[10px] text-gray-600 font-mono uppercase tracking-wider">{subtext}</span>
       </div>
-
-      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full -mr-16 -mt-16 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-    </motion.div>
+    </div>
   );
 };
 

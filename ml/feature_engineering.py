@@ -86,7 +86,7 @@ def extract_features(
         return _empty_feature_dict()
 
     packets_df = packets_df.copy()
-    packets_df.loc[:, "captured_at"] = pd.to_datetime(
+    packets_df["captured_at"] = pd.to_datetime(
         packets_df["captured_at"], utc=True, format="ISO8601",
     )
 

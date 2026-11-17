@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Cpu, Wifi, AlertTriangle, Monitor, Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Radio } from 'lucide-react';
 import { api } from '../lib/api';
 
 const Topbar = () => {
   const [time, setTime] = useState(new Date());
+  const [theme, setTheme] = useState('dark');
   const [stats, setStats] = useState({
-    trafficRate: '0 Mbps',
+    trafficRate: '0.00 Mbps',
     packetCount: '0',
     activeAlerts: 0,
   });
-
-  const [theme, setTheme] = useState('dark');
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -46,8 +45,8 @@ const Topbar = () => {
         });
       } catch {
         setStats({
-          trafficRate: 'N/A',
-          packetCount: 'N/A',
+          trafficRate: '0.00 Mbps',
+          packetCount: '0',
           activeAlerts: 0,
         });
       }
@@ -59,73 +58,48 @@ const Topbar = () => {
   }, []);
 
   return (
-    <div className="h-16 bg-dark-panel border-b border-dark-border flex items-center justify-between px-8 shadow-sm relative z-30">
-      <div className="flex items-center gap-8">
-        <div className="flex items-center gap-3">
-          <div className="p-1 px-3 bg-dark-bg rounded border border-dark-border flex items-center gap-3">
-            <span className="text-[10px] font-bold text-gray-500 tracking-wider">TACTICAL_INTEL_V1.0</span>
-            <div className="h-3 w-px bg-dark-border" />
-            <span className="text-[10px] font-mono text-neon-cyan animate-pulse">PACKET_STREAM_LIVE</span>
-          </div>
+    <header className="h-14 bg-dark-panel border-b border-dark-border px-5 flex items-center justify-between shrink-0">
+      <div className="flex items-center gap-4 text-xs font-mono">
+        <div className="flex items-center gap-2 px-2.5 py-1 bg-dark-surface border border-dark-border text-zinc-300">
+          <Radio className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+          <span>INTRUSION_DETECTION_SYS</span>
         </div>
-
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-neon-green animate-led-blink shadow-neon-glow-green" />
-            <span className="text-[10px] font-bold text-gray-400">UPLINK_ALPHA</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-neon-green/40 shadow-[0_0_5px_rgba(57,255,20,0.2)]" />
-            <span className="text-[10px] font-bold text-gray-400">PARSER_V4</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-neon-red animate-pulse shadow-neon-glow-red" />
-            <span className="text-[10px] font-bold text-gray-400">INTRUSION_DET</span>
-          </div>
+        <div className="hidden md:flex items-center gap-4 text-zinc-500">
+          <span>PORT: 8000</span>
+          <span>•</span>
+          <span>STREAM: ACTIVE</span>
         </div>
       </div>
 
-      <div className="flex items-center gap-8">
-        <div className="flex items-center gap-6 text-[10px] font-mono">
-          <div className="flex flex-col items-end">
-            <span className="text-gray-500 text-[8px] tracking-widest uppercase">Traffic Rate</span>
-            <span className="text-neon-cyan">{stats.trafficRate}</span>
+      <div className="flex items-center gap-5">
+        <div className="hidden sm:flex items-center gap-4 text-xs font-mono">
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-500 text-[11px] uppercase">Rate</span>
+            <span className="text-zinc-200">{stats.trafficRate}</span>
           </div>
-          <div className="flex flex-col items-end">
-            <span className="text-gray-500 text-[8px] tracking-widest uppercase">Packet Count</span>
-            <span className="text-white">{stats.packetCount}</span>
-          </div>
-          <div className="flex flex-col items-end">
-            <span className="text-gray-500 text-[8px] tracking-widest uppercase">Alerts</span>
-            <span className="text-neon-red">{stats.activeAlerts}</span>
+          <span className="text-zinc-700">|</span>
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-500 text-[11px] uppercase">Alerts</span>
+            <span className={stats.activeAlerts > 0 ? "text-rose-400 font-semibold" : "text-zinc-200"}>
+              {stats.activeAlerts}
+            </span>
           </div>
         </div>
 
-        <div className="h-8 w-px bg-dark-border" />
+        <div className="h-4 w-px bg-dark-border" />
 
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-xs font-bold text-white tracking-widest">
-              {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </div>
-            <div className="text-[9px] text-gray-500 font-mono">
-              {time.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })}
-            </div>
-          </div>
+        <div className="flex items-center gap-3 font-mono text-xs text-zinc-400">
+          <span>{time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           <button
             onClick={toggleTheme}
-            className="p-2 border border-dark-border rounded-lg bg-dark-bg text-gray-500 hover:text-white hover:border-white/20 transition-all shadow-skeuo-beveled"
+            className="p-1.5 border border-dark-border bg-dark-surface text-zinc-400 hover:text-zinc-100 hover:border-zinc-600 transition-colors"
+            title="Toggle Theme"
           >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
-          <div className="w-10 h-10 rounded-full border border-dark-border bg-dark-bg p-1 shadow-skeuo-beveled">
-            <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-700 to-black flex items-center justify-center overflow-hidden border border-white/5">
-              <Monitor className="w-5 h-5 text-gray-400" />
-            </div>
-          </div>
         </div>
       </div>
-    </div>
+    </header>
   );
 };
 
