@@ -4,91 +4,48 @@
 
 :root {
   color-scheme: dark;
-  --color-dark-bg: 5, 5, 5;
-  --color-dark-panel: 17, 17, 17;
-  --color-dark-border: 34, 34, 34;
-  --color-dark-surface: 21, 21, 21;
+  --color-dark-bg: 9, 9, 11;        /* zinc-950 */
+  --color-dark-panel: 14, 14, 17;    /* clean flat panel */
+  --color-dark-surface: 24, 24, 27;  /* zinc-900 */
+  --color-dark-border: 39, 39, 42;   /* zinc-800 crisp border */
 }
 
 [data-theme="light"] {
   color-scheme: light;
-  --color-dark-bg: 245, 245, 245;
+  --color-dark-bg: 248, 250, 252;
   --color-dark-panel: 255, 255, 255;
-  --color-dark-border: 220, 220, 220;
-  --color-dark-surface: 235, 235, 235;
+  --color-dark-surface: 241, 245, 249;
+  --color-dark-border: 226, 232, 240;
 }
 
 body {
-  @apply bg-dark-bg text-gray-300 font-sans overflow-hidden;
+  @apply bg-dark-bg text-zinc-300 font-sans overflow-hidden antialiased;
   margin: 0;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Global Grain Overlay */
-.grain-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.05;
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-}
-
-/* Custom Scrollbar (Terminal Style) */
+/* Minimalist Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-dark-bg;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-dark-border rounded-full;
+  @apply bg-zinc-800;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-600;
+  @apply bg-zinc-600;
 }
 
-/* Neon Text Utilities - Renamed to avoid recursion */
-.neon-text-cyan {
-  @apply text-neon-cyan;
-  text-shadow: 0 0 5px rgba(0, 247, 255, 0.5), 0 0 10px rgba(0, 247, 255, 0.3);
+/* Crisp box frame */
+.box-panel {
+  @apply bg-dark-panel border border-dark-border;
 }
 
-.neon-text-green {
-  @apply text-neon-green;
-  text-shadow: 0 0 5px rgba(57, 255, 20, 0.5), 0 0 10px rgba(57, 255, 20, 0.3);
-}
-
-.neon-text-red {
-  @apply text-neon-red;
-  text-shadow: 0 0 5px rgba(255, 0, 60, 0.5), 0 0 10px rgba(255, 0, 60, 0.3);
-}
-
-/* Glassmorphism Classes */
-.glass-panel {
-  @apply bg-dark-panel/40 backdrop-blur-md border border-white/5;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.82);
-}
-
-/* Skeuomorphic Bezel */
-.bezel-outer {
-  @apply relative rounded-xl border-t border-l border-white/10 border-b border-r border-black/40;
-}
-
-/* Scanline Effect */
-.scanline {
-  @apply absolute inset-0 pointer-events-none z-50 overflow-hidden;
-}
-
-.scanline::after {
-  content: "";
-  @apply absolute inset-0 w-full h-[2px] bg-white/5 animate-scanline;
+.box-panel-header {
+  @apply px-4 py-2.5 border-b border-dark-border bg-dark-surface/40 flex items-center justify-between text-xs font-mono uppercase tracking-wider text-zinc-300;
 }

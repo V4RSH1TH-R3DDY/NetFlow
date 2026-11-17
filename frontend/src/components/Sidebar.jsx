@@ -1,79 +1,79 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { LayoutDashboard, Activity, Bell, PieChart, Settings, ShieldAlert, BrainCircuit, DatabaseZap } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  Activity, 
+  Layers, 
+  ShieldAlert, 
+  BarChart3, 
+  BrainCircuit, 
+  Network as NetworkIcon, 
+  Database, 
+  SlidersHorizontal 
+} from 'lucide-react';
 
 const navItems = [
-  { id: 'dashboard', label: 'DASHBOARD', icon: LayoutDashboard },
-  { id: 'packets', label: 'PACKETS', icon: Activity },
-  { id: 'sessions', label: 'SESSIONS', icon: Activity },
-  { id: 'alerts', label: 'ALERTS', icon: Bell },
-  { id: 'analytics', label: 'ANALYTICS', icon: PieChart },
-  { id: 'predictions', label: 'PREDICTIONS', icon: BrainCircuit },
-  { id: 'network', label: 'NETWORK', icon: Activity },
-  { id: 'ingestion', label: 'INGESTION', icon: DatabaseZap },
-  { id: 'settings', label: 'SETTINGS', icon: Settings },
+  { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+  { id: 'packets', label: 'Packets', icon: Activity },
+  { id: 'sessions', label: 'Sessions', icon: Layers },
+  { id: 'alerts', label: 'Alerts', icon: ShieldAlert },
+  { id: 'predictions', label: 'Inference', icon: BrainCircuit },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'network', label: 'Topology', icon: NetworkIcon },
+  { id: 'ingestion', label: 'Ingestion', icon: Database },
+  { id: 'settings', label: 'Config', icon: SlidersHorizontal },
 ];
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
   return (
-    <div className="w-64 h-full bg-dark-panel border-r border-dark-border flex flex-col p-6 shadow-skeuo-flat relative z-20">
-      <div className="flex items-center gap-3 mb-12">
-        <div className="w-10 h-10 bg-dark-surface rounded-lg shadow-skeuo-beveled flex items-center justify-center border border-white/5">
-          <ShieldAlert className="text-neon-cyan w-6 h-6 drop-shadow-[0_0_8px_rgba(0,247,255,0.6)]" />
+    <aside className="w-56 h-full bg-dark-panel border-r border-dark-border flex flex-col shrink-0">
+      {/* Brand box */}
+      <div className="h-14 border-b border-dark-border px-4 flex items-center gap-2.5">
+        <div className="w-5 h-5 bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center">
+          <div className="w-2 h-2 bg-cyan-400" />
         </div>
-        <div>
-          <h1 className="text-sm font-bold tracking-widest text-white leading-none">OPERATOR_01</h1>
-          <span className="text-[10px] text-neon-green/80 font-mono">SYSTEM_NOMINAL</span>
+        <div className="flex flex-col">
+          <span className="text-xs font-mono font-semibold tracking-wider text-zinc-100 uppercase">NetFlow</span>
+          <span className="text-[10px] font-mono text-zinc-500">v1.2.0 • monitor</span>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-4">
+      {/* Navigation */}
+      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+        <div className="px-2 py-1.5 text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+          Navigation
+        </div>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
 
           return (
-            <motion.button
+            <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.95 }}
-              className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 relative group
-                ${isActive 
-                  ? 'bg-dark-surface shadow-skeuo-pressed border border-white/5' 
-                  : 'hover:bg-dark-surface/50 border border-transparent'}
-              `}
+              className={`w-full flex items-center gap-3 px-2.5 py-2 text-xs font-mono transition-colors text-left border ${
+                isActive
+                  ? 'bg-zinc-800/80 text-zinc-100 border-zinc-700'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 border-transparent'
+              }`}
             >
-              <Icon 
-                className={`w-5 h-5 transition-colors duration-300
-                  ${isActive ? 'text-neon-cyan drop-shadow-[0_0_8px_rgba(0,247,255,0.6)]' : 'text-gray-500 group-hover:text-gray-300'}
-                `} 
-              />
-              <span 
-                className={`text-xs font-bold tracking-wider transition-colors duration-300
-                  ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'}
-                `}
-              >
-                {item.label}
-              </span>
-
-              {isActive && (
-                <motion.div 
-                  layoutId="glow"
-                  className="absolute inset-0 rounded-xl bg-neon-cyan/5 blur-md"
-                />
-              )}
-            </motion.button>
+              <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-cyan-400' : 'text-zinc-500'}`} />
+              <span className="truncate">{item.label}</span>
+            </button>
           );
         })}
       </nav>
 
-      <div className="mt-auto pt-6 border-t border-dark-border">
-        <button className="w-full py-3 bg-neon-red/10 border border-neon-red/30 rounded-lg text-neon-red text-[10px] font-bold tracking-[0.2em] hover:bg-neon-red/20 transition-colors shadow-neon-glow-red">
-          EMERGENCY_SHUTDOWN
-        </button>
+      {/* Footer system status */}
+      <div className="border-t border-dark-border p-3 bg-dark-surface/30">
+        <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-none inline-block" />
+            ENGINE
+          </span>
+          <span className="text-zinc-500">READY</span>
+        </div>
       </div>
-    </div>
+    </aside>
   );
 };
 
