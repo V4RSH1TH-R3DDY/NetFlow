@@ -9,7 +9,6 @@ Implements Phase 4 requirements:
 
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import pickle
@@ -98,7 +97,6 @@ def main():
     
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
-    X_val_scaled = scaler.transform(X_val)
     X_test_scaled = scaler.transform(X_test)
     
     # 2. Baselines (Phase 4.2)

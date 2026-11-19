@@ -9,7 +9,6 @@ from typing import Any
 
 import pandas as pd
 import psycopg
-import threading
 from flask import Flask, request, Response
 
 from ml.feature_engineering import extract_features

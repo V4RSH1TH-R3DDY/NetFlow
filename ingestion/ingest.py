@@ -116,9 +116,12 @@ def insert_rejected_rows(cur: psycopg.Cursor, run_id: int, rejected_rows: pd.Dat
 
     records = []
     def _clean(v):
-        if isinstance(v, (list, tuple, dict)): return v
-        if pd.isna(v): return None
-        if hasattr(v, 'item'): return v.item() # Handle numpy/pandas types
+        if isinstance(v, (list, tuple, dict)):
+            return v
+        if pd.isna(v):
+            return None
+        if hasattr(v, 'item'):
+            return v.item()  # Handle numpy/pandas types
         return v
 
     for _, row in rejected_rows.iterrows():

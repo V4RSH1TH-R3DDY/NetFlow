@@ -6,6 +6,12 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
+import json
+import os
+import psycopg
+from dotenv import load_dotenv
+
 import sys
 from pathlib import Path
 
@@ -14,13 +20,7 @@ project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
-import argparse
-import json
-import os
-import psycopg
-from dotenv import load_dotenv
-
-from ml.inference import FEATURE_COLS, get_model
+from ml.inference import FEATURE_COLS, get_model  # noqa: E402 (standalone script entry point)
 
 def batch_inference(database_url: str, model_version: str | None = None):
     model = get_model(model_version)

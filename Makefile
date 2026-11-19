@@ -10,16 +10,18 @@ install: venv
 	.venv/bin/pip install -r requirements.txt
 
 # Phase 0: Linting (ruff + py_compile)
+PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python)
+
 lint-python:
-	.venv/bin/python -m ruff check backend/ ingestion/ ml/ tests/
-	.venv/bin/python -m py_compile backend/app.py
-	.venv/bin/python -m py_compile ingestion/cleaner.py
-	.venv/bin/python -m py_compile ingestion/ingest.py
-	.venv/bin/python -m py_compile ml/sessionize.py
-	.venv/bin/python -m py_compile ml/feature_engineering.py
-	.venv/bin/python -m py_compile ml/label_loader.py
-	.venv/bin/python -m py_compile ml/quality_report.py
-	.venv/bin/python -m py_compile ml/generate_synthetic.py
+	$(PYTHON) -m ruff check backend/ ingestion/ ml/ tests/
+	$(PYTHON) -m py_compile backend/app.py
+	$(PYTHON) -m py_compile ingestion/cleaner.py
+	$(PYTHON) -m py_compile ingestion/ingest.py
+	$(PYTHON) -m py_compile ml/sessionize.py
+	$(PYTHON) -m py_compile ml/feature_engineering.py
+	$(PYTHON) -m py_compile ml/label_loader.py
+	$(PYTHON) -m py_compile ml/quality_report.py
+	$(PYTHON) -m py_compile ml/generate_synthetic.py
 	@echo "✓ lint-python passed"
 
 # Phase 2: Batch ingestion

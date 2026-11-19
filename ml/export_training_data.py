@@ -27,7 +27,7 @@ def export_data(database_url: str, output_path: Path):
         WHERE sf.ground_truth_label_id IS NOT NULL
     """
     
-    print(f"Connecting to DB and fetching labeled features...")
+    print("Connecting to DB and fetching labeled features...")
     with psycopg.connect(database_url) as conn:
         df = pd.read_sql_query(query, conn)
         
