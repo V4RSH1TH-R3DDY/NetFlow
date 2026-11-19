@@ -1,6 +1,5 @@
 -- NetFlow core schema
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS attack_labels (
     label_id SMALLSERIAL PRIMARY KEY,
