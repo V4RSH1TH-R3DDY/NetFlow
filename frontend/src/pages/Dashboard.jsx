@@ -62,6 +62,7 @@ const Dashboard = () => {
   const [liveMetrics, setLiveMetrics] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [liveTraffic, setLiveTraffic] = useState([]);
+  const [liveToasts, setLiveToasts] = useState([]);
 
   useEffect(() => {
     const metricsSse = new EventSource('/api/stream/metrics');
@@ -85,6 +86,19 @@ const Dashboard = () => {
         });
       } catch (err) {
         console.error("Metrics SSE parse error", err);
+      }
+    };
+
+    alertsSse.onmessage = (e) => {
+      try {
+        const newAlert = JSON.parse(e.data);
+        const toastId = Date.now() + Math.random();
+        setLiveToasts(prev => [ { id: toastId, ...newAlert }, ...prev ].slice(0, 4));
+        setTimeout(() => {
+          setLiveToasts(prev => prev.filter(t => t.id !== toastId));
+        }, 6000);
+      } catch (err) {
+        console.error("Alerts SSE parse error", err);
       }
     };
 
@@ -116,7 +130,29 @@ const Dashboard = () => {
   }, [dashboardData.trends, liveTraffic]);
 
   return (
-    <div className="space-y-4 font-mono">
+    <div className="space-y-4 font-mono relative">
+      {/* Real-time Alert Toast Notification Popups */}
+      {liveToasts.length > 0 && (
+        <div className="fixed top-20 right-6 z-50 flex flex-col gap-2 max-w-sm pointer-events-auto">
+          {liveToasts.map(toast => (
+            <div
+              key={toast.id}
+              className="border border-rose-500/50 bg-dark-panel p-3 shadow-2xl flex items-start gap-2.5 animate-in slide-in-from-right duration-200"
+            >
+              <div className="w-2 h-2 rounded-full bg-rose-500 animate-ping mt-1 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between text-[11px] font-bold text-rose-400 uppercase">
+                  <span>LIVE_ALERT #{toast.alert_id}</span>
+                  <span className="text-[9px] px-1 border border-rose-500/40">SEV-{toast.severity || 4}</span>
+                </div>
+                <div className="text-xs text-zinc-200 font-semibold truncate mt-0.5">{toast.alert_type}</div>
+                <div className="text-[10px] text-zinc-400 line-clamp-2 mt-0.5">{toast.description}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Header bar */}
       <div className="box-panel px-4 py-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">

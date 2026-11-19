@@ -753,7 +753,7 @@ def get_packets_count() -> tuple[dict[str, Any], int]:
 def get_alert(alert_id: int) -> tuple[dict[str, Any], int]:
     query = (
         "SELECT alert_id, session_id, prediction_id, alert_type, severity, status, rule_name, description, "
-        "triggered_at, acknowledged_at "
+        "triggered_at, acknowledged_at, metadata "
         "FROM alerts "
         "WHERE alert_id = %s"
     )
@@ -777,29 +777,34 @@ def get_alert(alert_id: int) -> tuple[dict[str, Any], int]:
         "description": row[7],
         "triggered_at": row[8].isoformat() if row[8] else None,
         "acknowledged_at": row[9].isoformat() if row[9] else None,
+        "metadata": row[10] if len(row) > 10 else None,
     }
     
     # Try fetching session details
     if data["session_id"]:
-        session_query = "SELECT src_ip::text, dst_ip::text, src_port, dst_port, protocol FROM sessions WHERE session_id = %s"
+        session_query = "SELECT src_ip::text, dst_ip::text, src_port, dst_port, protocol, packet_count, total_bytes FROM sessions WHERE session_id = %s"
         try:
             s_rows = _fetch_all(session_query, [data["session_id"]])
             if s_rows:
                 s_row = s_rows[0]
-                data["session_details"] = {
+                session_obj = {
                     "src_ip": s_row[0],
                     "dst_ip": s_row[1],
                     "src_port": s_row[2],
                     "dst_port": s_row[3],
                     "protocol": s_row[4],
+                    "packet_count": s_row[5],
+                    "total_bytes": s_row[6],
                 }
+                data["session"] = session_obj
+                data["session_details"] = session_obj
         except Exception:
             pass
             
     # Try fetching prediction details
     if data["prediction_id"]:
         pred_query = (
-            "SELECT p.confidence, p.model_version, al.label_code "
+            "SELECT p.confidence, p.model_version, COALESCE(al.label_code, p.features->>'predicted_label'), p.features "
             "FROM predictions p "
             "LEFT JOIN attack_labels al ON al.label_id = p.predicted_label_id "
             "WHERE p.prediction_id = %s"
@@ -808,10 +813,12 @@ def get_alert(alert_id: int) -> tuple[dict[str, Any], int]:
             p_rows = _fetch_all(pred_query, [data["prediction_id"]])
             if p_rows:
                 p_row = p_rows[0]
+                features_data = p_row[3] if isinstance(p_row[3], dict) else {}
                 data["prediction_details"] = {
                     "confidence": float(p_row[0]) if p_row[0] is not None else None,
                     "model_version": p_row[1],
                     "predicted_label": p_row[2],
+                    "features": features_data,
                 }
         except Exception:
             pass

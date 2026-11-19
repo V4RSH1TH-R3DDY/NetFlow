@@ -3,6 +3,43 @@ import { useQuery } from '@tanstack/react-query';
 import { ShieldAlert, RefreshCw, X, ChevronRight, Check } from 'lucide-react';
 import { api } from '../lib/api';
 
+const generateThreatExplanation = (alert) => {
+  const reasons = [];
+  const session = alert.session || alert.session_details || {};
+  const pred = alert.prediction_details || {};
+  const feats = pred.features || {};
+  const alertType = (alert.alert_type || alert.rule_name || '').toUpperCase();
+  const proto = (session.protocol || '').toUpperCase();
+  const dstPort = Number(session.dst_port);
+  const pktCount = Number(session.packet_count || feats.total_packets || 0);
+  const pps = Number(feats.packets_per_sec || 0);
+
+  if (alertType.includes('SYN') || feats.has_syn) {
+    reasons.push('High concentration of TCP SYN flags without normal connection completion (SYN flood indicator).');
+  }
+  if (alertType.includes('DNS') || (proto === 'UDP' && (dstPort === 53 || session.src_port === 53))) {
+    reasons.push('Amplified UDP response pattern on DNS port 53, typical of reflection denial-of-service.');
+  }
+  if (alertType.includes('ICMP') || proto === 'ICMP') {
+    reasons.push('High-frequency ICMP packet burst exceeding diagnostic baseline thresholds.');
+  }
+  if (alertType.includes('SCAN') || alertType.includes('PROBE') || Number(feats.unique_dst_ports) > 5) {
+    reasons.push(`Sequential port probe signature targeting ${feats.unique_dst_ports || 'multiple'} distinct ports.`);
+  }
+  if (alertType.includes('SSH') || alertType.includes('BRUTE') || dstPort === 22) {
+    reasons.push('Repetitive authentication attempt sequence targeting SSH port 22 in a short timeframe.');
+  }
+  if (alertType.includes('DOS') || alertType.includes('DDOS') || pps > 40) {
+    reasons.push('Volumetric anomaly: packet arrival rate significantly exceeds normal traffic distribution.');
+  }
+
+  if (reasons.length === 0) {
+    reasons.push('Model anomaly detector identified statistical feature deviation from normal traffic baseline.');
+  }
+
+  return reasons;
+};
+
 const AlertDetailDrawer = ({ alertId, onClose, onStatusChange }) => {
   const { data: alertDetail, isLoading } = useQuery({
     queryKey: ['alert', alertId],
@@ -12,8 +49,12 @@ const AlertDetailDrawer = ({ alertId, onClose, onStatusChange }) => {
 
   if (!alertId) return null;
 
+  const session = alertDetail?.session || alertDetail?.session_details;
+  const prediction = alertDetail?.prediction_details;
+  const explanations = alertDetail ? generateThreatExplanation(alertDetail) : [];
+
   return (
-    <div className="fixed inset-y-0 right-0 w-96 bg-dark-panel border-l border-dark-border z-50 flex flex-col font-mono text-xs">
+    <div className="fixed inset-y-0 right-0 w-96 bg-dark-panel border-l border-dark-border z-50 flex flex-col font-mono text-xs shadow-2xl">
       <div className="h-12 border-b border-dark-border px-4 flex items-center justify-between bg-dark-surface/50">
         <span className="font-semibold text-zinc-100">INCIDENT_FILE #{alertId}</span>
         <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100">
@@ -38,19 +79,45 @@ const AlertDetailDrawer = ({ alertId, onClose, onStatusChange }) => {
               </div>
             </div>
 
+            {/* Why this is an alert */}
+            <div className="border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+              <div className="text-[10px] text-amber-400 uppercase font-semibold flex items-center gap-1.5">
+                <ShieldAlert className="w-3.5 h-3.5" /> WHY_THIS_IS_AN_ALERT
+              </div>
+              <ul className="space-y-1.5 text-zinc-300 text-[11px] list-disc list-inside">
+                {explanations.map((exp, idx) => (
+                  <li key={idx} className="leading-snug">{exp}</li>
+                ))}
+              </ul>
+            </div>
+
             <div className="border border-dark-border p-3 space-y-2">
-              <div className="text-[10px] text-zinc-500 uppercase">SUMMARY</div>
+              <div className="text-[10px] text-zinc-500 uppercase">INCIDENT_DESCRIPTION</div>
               <p className="text-zinc-300 leading-relaxed">{alertDetail.description || 'No description logged.'}</p>
             </div>
 
-            {alertDetail.session && (
+            {session && (
               <div className="border border-dark-border p-3 space-y-2">
-                <div className="text-[10px] text-zinc-500 uppercase">SESSION_FLOW</div>
+                <div className="text-[10px] text-zinc-500 uppercase">SESSION_FLOW_TELEMETRY</div>
                 <div className="space-y-1 text-zinc-400">
-                  <div>SRC: {alertDetail.session.src_ip}:{alertDetail.session.src_port || '--'}</div>
-                  <div>DST: {alertDetail.session.dst_ip}:{alertDetail.session.dst_port || '--'}</div>
-                  <div>PROTO: {alertDetail.session.protocol}</div>
-                  <div>PACKETS: {alertDetail.session.packet_count}</div>
+                  <div>SRC: <span className="text-zinc-200">{session.src_ip}:{session.src_port || '--'}</span></div>
+                  <div>DST: <span className="text-zinc-200">{session.dst_ip}:{session.dst_port || '--'}</span></div>
+                  <div>PROTO: <span className="text-cyan-400 font-semibold">{session.protocol}</span></div>
+                  <div>PACKETS: <span className="text-zinc-200">{session.packet_count || '--'}</span></div>
+                  {session.total_bytes && <div>VOLUME: <span className="text-zinc-200">{session.total_bytes} bytes</span></div>}
+                </div>
+              </div>
+            )}
+
+            {prediction && (
+              <div className="border border-dark-border p-3 space-y-2 bg-dark-surface/10">
+                <div className="text-[10px] text-zinc-500 uppercase">MODEL_INFERENCE_ATTRIBUTION</div>
+                <div className="space-y-1 text-zinc-400">
+                  <div>MODEL: <span className="text-zinc-300">{prediction.model_version}</span></div>
+                  <div>CLASSIFICATION: <span className="text-rose-400 font-bold">{prediction.predicted_label}</span></div>
+                  {prediction.confidence != null && (
+                    <div>CONFIDENCE: <span className="text-emerald-400 font-semibold">{(prediction.confidence * 100).toFixed(1)}%</span></div>
+                  )}
                 </div>
               </div>
             )}
@@ -85,6 +152,7 @@ const Alerts = () => {
       if (statusFilter) params.status = statusFilter;
       return api.listAlerts(params);
     },
+    refetchInterval: 3000,
     keepPreviousData: true,
   });
 

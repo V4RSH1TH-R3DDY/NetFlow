@@ -1,100 +1,134 @@
-# NetFlow Startup Guide
+# NetFlow Startup & Operations Guide
 
-Welcome to the NetFlow project! This guide will walk you through setting up your environment, running the database, ingesting sample data, and starting the backend API.
-
-## Prerequisites
-
-Ensure you have the following installed on your system:
-- **Python 3.10+**
-- **Docker** & **Docker Compose**
-- **Make** (optional, but highly recommended for using the provided `Makefile` commands)
-
-## Step 1: Environment Configuration
-
-Before running the project, you need to set up your environment variables. 
-Copy the provided `.env.example` file to create your own `.env` file:
-
-```bash
-cp .env.example .env
-```
-*(The default values in `.env.example` are pre-configured to work out-of-the-box for local development.)*
-
-## Step 2: Python Environment & Dependencies
-
-Set up the Python virtual environment and install the required dependencies:
-
-```bash
-make install
-```
-*(This will create a `.venv` directory and install packages from `requirements.txt`.)*
-
-## Step 3: Starting the Database
-
-The project uses PostgreSQL, which is orchestrated via Docker Compose. To start the database in the background:
-
-```bash
-make db-up
-```
-*(You can stop the database later using `make db-down`.)*
-
-Wait a few seconds for the database to become healthy. The schema will be automatically initialized via the scripts in `db/`.
-
-## Step 4: Data Ingestion (Batch)
-
-To populate the database with initial data, you can run the ingestion script using the provided sample CSV file:
-
-```bash
-make ingest FILE=data/raw/sample.csv
-```
-*(There is also a `synthetic_traffic.csv` available in `data/raw/` for larger tests.)*
-
-## Step 5: Running the Backend API
-
-Start the Flask backend API:
-
-```bash
-make run-backend
-```
-The API will be available at `http://localhost:8000/`. You can test it by visiting `http://localhost:8000/health`.
+Welcome to NetFlow! This guide walks you through starting the entire platform, running attacks and streaming traffic, and inspecting alerts with detailed root-cause explanations.
 
 ---
 
-## Alternative: All-in-One Startup Script
+## ⚡ Quick Start (All-in-One)
 
-If you prefer to start everything at once (loading the environment, starting the DB, and running the backend), you can use the provided bash script:
+The fastest way to boot the database, Flask API, and React dashboard together:
 
 ```bash
 ./start.sh
 ```
 
-## Next Steps (ML Pipelines)
+This script automatically:
+1. Verifies `.env` (creates it from `.env.example` if missing).
+2. Sets up Python virtual environment (`.venv`) and checks dependencies.
+3. Launches the PostgreSQL 16 container via Docker Compose.
+4. Starts the **Flask Backend API** on `http://localhost:8000`.
+5. Starts the **Vite React Frontend** on `http://localhost:5173`.
+6. Handles graceful shutdown on `Ctrl+C`.
 
-Once you have ingested data, you can run the Machine Learning pipelines defined in Phase 3:
+---
 
-- **Sessionization**: Group packets into sessions.
+## 🛠️ Step-by-Step Manual Setup
+
+### 1. Prerequisites
+- **Python 3.10+**
+- **Node.js 18+** & `npm`
+- **Docker** & **Docker Compose**
+
+### 2. Environment Configuration
+```bash
+cp .env.example .env
+```
+
+### 3. Dependencies
+```bash
+# Python
+make install
+# Or: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# Frontend
+cd frontend && npm install && cd ..
+```
+
+### 4. Database Setup
+```bash
+make db-up
+```
+Wait a few seconds for PostgreSQL to report healthy. Schema and triggers are automatically initialized from `db/`.
+
+### 5. Running Backend & Frontend
+* **Terminal 1 (Backend API):**
   ```bash
-  make sessionize
+  make run-backend
   ```
-- **Feature Engineering**: Extract per-session features.
-  ```bash
-  make extract-features
-  ```
-- **Data Quality Report**: Generate a report on the extracted features.
-  ```bash
-  make quality-report
-  ```
+  API runs on `http://localhost:8000` (Healthcheck: `http://localhost:8000/health`).
 
-## Testing & Code Quality
-
-To ensure everything is working correctly and your code meets quality standards:
-
-- **Run Tests**:
+* **Terminal 2 (Frontend UI):**
   ```bash
-  make test
+  cd frontend && npm run dev
   ```
-- **Lint Python Code**:
-  ```bash
-  make lint-python
-  ```
+  Dashboard opens at `http://localhost:5173/`.
 
-For more comprehensive information about project architecture and future phases, please refer to the `README.md`.
+* **Terminal 3 (Real-Time Detection Consumer):**
+  ```bash
+  make run-streaming-consumer
+  ```
+  Listens for live incoming packets via PostgreSQL `LISTEN/NOTIFY`, groups them into stateful flows, runs ML inference, and logs alerts.
+
+---
+
+## 🚨 Attack Simulation & Live Alerts
+
+### Run Live Multi-Protocol Attacks
+To simulate live realistic mixed-protocol attacks (SYN floods, DNS reflection, ICMP floods, and port probes):
+
+```bash
+make critical-attack
+```
+or
+```bash
+make live-attack
+```
+
+### What You Will See in the UI:
+1. **Dashboard (`http://localhost:5173/`):**
+   - **Traffic Oscilloscope:** Renders real-time PPS spikes.
+   - **Protocol Donut:** Dynamically shifts percentages between TCP, UDP, and ICMP.
+   - **Live Alert Toasts:** Real-time attack popups slide in on the top-right corner.
+2. **Alerts Tab:**
+   - Automatically auto-refreshes every 3 seconds with incoming threat incidents.
+   - Click any alert row to slide open the **Incident Drawer**.
+3. **`WHY_THIS_IS_AN_ALERT` Root-Cause Analysis:**
+   - The drawer explains exactly why each incident was flagged:
+     - **SYN Flood:** Unacknowledged TCP SYN flags exceeding rate baselines.
+     - **DNS Amplification:** High-bandwidth UDP reflection targeting port 53.
+     - **Port Scan:** Rapid sequential port probes across distinct destination ports.
+     - **Volumetric Anomaly:** Arrival rate (PPS) significantly exceeding normal operation.
+     - **ML Attribution:** Model version, predicted attack label, and classification confidence.
+
+---
+
+## 📦 Batch Data Pipeline (Historical Ingestion)
+
+To process batch CSV/JSON captures instead of live streaming:
+
+```bash
+# 1. Ingest packets
+make ingest FILE=data/raw/sample.csv
+
+# 2. Reconstruct sessions
+make sessionize
+
+# 3. Extract 17 statistical flow features
+make extract-features
+
+# 4. Run ML model scoring
+make run-inference
+```
+
+---
+
+## 🧪 Testing & Code Quality
+
+Run the test suite:
+```bash
+make test
+```
+All 36 unit tests cover:
+- Mathematical feature extractors (`_safe_div`, `_compute_iat`, `_compute_payload_entropy`).
+- Session boundary splits, TCP FIN/RST terminators, and flow key bidirectional hashing.
+- ML bundle discovery and validation (`test_inference.py`).

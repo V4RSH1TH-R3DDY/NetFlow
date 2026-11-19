@@ -103,10 +103,10 @@ def clean_packet_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
     if missing:
         raise ValueError(f"Missing required columns: {sorted(missing)}")
 
-    cleaned.loc[:, "captured_at"] = pd.to_datetime(cleaned["captured_at"], errors="coerce", utc=True)
-    cleaned.loc[:, "src_ip"] = cleaned["src_ip"].astype("string").str.strip()
-    cleaned.loc[:, "dst_ip"] = cleaned["dst_ip"].astype("string").str.strip()
-    cleaned.loc[:, "protocol"] = cleaned["protocol"].astype("string").str.upper().str.strip()
+    cleaned["captured_at"] = pd.to_datetime(cleaned["captured_at"], errors="coerce", utc=True)
+    cleaned["src_ip"] = cleaned["src_ip"].astype("string").str.strip()
+    cleaned["dst_ip"] = cleaned["dst_ip"].astype("string").str.strip()
+    cleaned["protocol"] = cleaned["protocol"].astype("string").str.upper().str.strip()
 
     cleaned = cleaned.assign(
         src_port=_to_int_series(
@@ -119,9 +119,9 @@ def clean_packet_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
     )
 
     if "tcp_flags" not in cleaned.columns:
-        cleaned.loc[:, "tcp_flags"] = pd.Series([None] * len(cleaned), dtype="string", index=cleaned.index)
+        cleaned["tcp_flags"] = pd.Series([None] * len(cleaned), dtype="string", index=cleaned.index)
     if "payload_hash" not in cleaned.columns:
-        cleaned.loc[:, "payload_hash"] = pd.Series([None] * len(cleaned), dtype="string", index=cleaned.index)
+        cleaned["payload_hash"] = pd.Series([None] * len(cleaned), dtype="string", index=cleaned.index)
 
     validation_errors: list[list[str]] = []
     for _, row in cleaned.iterrows():

@@ -313,6 +313,34 @@ Phase 0 ──► Phase 1 ──► Phase 2 ──► Phase 3 ──► Phase 4
 
 ---
 
+## Getting Started
+
+Refer to the [Startup & Operations Guide](file:///home/varshith/NetFlow/STARTUP_GUIDE.md) for detailed step-by-step instructions.
+
+### Quick Start
+```bash
+# 1. Boot Database, Backend API, and Frontend UI
+./start.sh
+
+# 2. In a separate terminal, launch real-time attack streaming
+make run-streaming-consumer
+make critical-attack
+```
+
+The web dashboard is available at `http://localhost:5173/` and the backend REST API runs on `http://localhost:8000/`.
+
+---
+
+## Architecture & Real-Time Flow
+
+1. **Ingestion & Capture:** Packets enter via batch CSV/JSON ingestion (`make ingest`) or live attack simulators (`scripts/live_attack_simulator.py`, `scripts/critical_alert_demo.py`).
+2. **PostgreSQL LISTEN/NOTIFY:** A database trigger (`packet_notify_trigger`) broadcasts inserted packets across the `live_packets` notification channel.
+3. **Streaming Consumer:** `streaming/consumer.py` performs in-memory sessionization, extracts 17 flow features, and runs Random Forest and Isolation Forest inference.
+4. **Alert Attribution:** Malicious traffic triggers alerts with structured root-cause explanations (`WHY_THIS_IS_AN_ALERT`) displayed in the React operator console.
+5. **Dashboard & UI:** React 18 + TailwindCSS dark-mode console features real-time Server-Sent Events (SSE) toast popups, live traffic oscilloscopes, and incident telemetry drawers.
+
+---
+
 ## Conventions & Standards
 
 - **Branch strategy**: `feature/<phase>-<description>`, PRs require one reviewer

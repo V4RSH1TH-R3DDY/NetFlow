@@ -84,22 +84,20 @@ class OnlineSessionTracker:
             features = extract_features(session_row, packets_df)
             result = get_model().predict(features)
             
-            if result["predicted_label"] != "BENIGN" or result["is_anomaly"]:
+            # Only trigger alerts on malicious attacks or high-confidence anomalies
+            if result["predicted_label"] != "BENIGN":
                  logger.warning(f"Detection: {result['predicted_label']} for {session['src_ip']} -> {session['dst_ip']}")
-                 self._create_alert(session, result)
+                 self._create_alert(session, result, features)
         except Exception as e:
             logger.error(f"Error flushing session {key}: {e}")
 
-    def _create_alert(self, session: dict, result: dict):
+    def _create_alert(self, session: dict, result: dict, features: dict):
         try:
             with psycopg.connect(self.database_url) as conn:
                 with conn.cursor() as cur:
-                    # 1. First, create/update the session to get a valid session_id
-                    # We need a flow_hash similar to sessionize.py
                     started_at = session["packets"][0]["captured_at"]
                     ended_at = session["packets"][-1]["captured_at"]
                     
-                    # Match sessionize.py UUID generation
                     namespace = uuid.UUID("a3f1c8d0-e7b4-4f2a-9d6e-1c2b3a4f5e6d")
                     name = f"{session['src_ip']}|{session['dst_ip']}|||{session.get('protocol', 'TCP')}|{started_at}"
                     flow_hash = str(uuid.uuid5(namespace, name))
@@ -115,7 +113,8 @@ class OnlineSessionTracker:
                     ))
                     session_id = cur.fetchone()[0]
 
-                    # 2. Create the prediction record
+                    features_payload = {**features, **result}
+
                     cur.execute("""
                         WITH label AS (
                             SELECT label_id FROM attack_labels WHERE label_code = %s LIMIT 1
@@ -128,28 +127,38 @@ class OnlineSessionTracker:
                         session_id,
                         result["model_version"],
                         float(result["confidence"]),
-                        json.dumps({
-                            "predicted_label": result["predicted_label"],
-                            "anomaly_score": float(result["anomaly_score"]),
-                            "is_anomaly": bool(result["is_anomaly"])
-                        })
+                        json.dumps(features_payload, allow_nan=False)
                     ))
                     prediction_id = cur.fetchone()[0]
 
-                    # 3. Create alert if malicious OR anomaly
-                    if result["predicted_label"] != "BENIGN" or result["is_anomaly"]:
-                        cur.execute("""
-                            INSERT INTO alerts (session_id, prediction_id, alert_type, severity, status, rule_name, description)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        """, (
-                            session_id,
-                            prediction_id,
-                            result["predicted_label"],
-                            4 if result["is_anomaly"] else 3,
-                            'open',
-                            'ML_STREAMING_DETECTION',
-                            f"Real-time detection: {result['predicted_label']} (confidence {result['confidence']:.2f})"
-                        ))
+                    # Explanations for why this packet/session triggered an alert
+                    reasons = []
+                    pkt_count = len(session["packets"])
+                    pps = features.get("packets_per_sec", 0)
+                    if "SYN" in result["predicted_label"] or features.get("has_syn"):
+                        reasons.append("High-rate TCP SYN flag sequence without handshake completion (SYN Flood signature)")
+                    if "DOS" in result["predicted_label"] or "DDOS" in result["predicted_label"] or pps > 40:
+                        reasons.append(f"Volumetric burst: arrival rate of {pps:.0f} pkts/sec severely exceeds benign baseline")
+                    if "SCAN" in result["predicted_label"] or "PROBE" in result["predicted_label"] or features.get("unique_dst_ports", 0) > 5:
+                        reasons.append(f"Sequential destination port scanning pattern detected ({features.get('unique_dst_ports')} unique ports)")
+                    if not reasons:
+                        reasons.append(f"Classified as malicious {result['predicted_label']} by Random Forest inference")
+
+                    detailed_description = f"{result['predicted_label']} detected from {session['src_ip']} to {session['dst_ip']}. Reason: {'; '.join(reasons)}"
+
+                    cur.execute("""
+                        INSERT INTO alerts (session_id, prediction_id, alert_type, severity, status, rule_name, description, metadata)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+                    """, (
+                        session_id,
+                        prediction_id,
+                        result["predicted_label"],
+                        5 if "DDOS" in result["predicted_label"] or "DOS" in result["predicted_label"] else 4,
+                        'open',
+                        f"REALTIME_{result['predicted_label'].replace(' ', '_').replace('-', '_')}",
+                        detailed_description,
+                        json.dumps({"reasons": reasons, "features": features})
+                    ))
                 conn.commit()
         except Exception as e:
             logger.error(f"Failed to create alert: {e}")
