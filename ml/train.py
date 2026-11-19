@@ -179,7 +179,7 @@ def main():
     
     # 7. Serialization (Phase 4.5)
     version = f"v1_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-    models_dir = Path(f"models/{version}")
+    models_dir = Path(os.getenv("MODELS_DIR", "models")) / version
     models_dir.mkdir(parents=True, exist_ok=True)
     
     with open(models_dir / "rf_model.pkl", "wb") as f:

@@ -8,59 +8,38 @@ from __future__ import annotations
 
 import os
 import pickle
+import re
 from pathlib import Path
+from threading import Lock
 
 import pandas as pd
-from dotenv import load_dotenv
 
 from ml.train import FEATURE_COLS
 
+ARTIFACTS = ("rf_model.pkl", "iso_model.pkl", "scaler.pkl")
+VERSION_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
+
+
+class ModelUnavailable(RuntimeError):
+    """The selected inference bundle is missing or could not be loaded."""
+
 
 class NetFlowModel:
-    def __init__(self, models_dir: Path, version: str | None = None):
-        self.models_dir = models_dir
-        self.rf = None
-        self.iso = None
-        self.scaler = None
-        self.version = "unknown"
-        self._load_model(version)
-
-    def _load_model(self, version: str | None = None):
-        if not self.models_dir.exists():
-            print(f"Models directory {self.models_dir} not found.")
-            return
-
-        if version:
-            target_dir = self.models_dir / version
-        else:
-            # Find the latest model directory
-            subdirs = sorted([d for d in self.models_dir.iterdir() if d.is_dir() and d.name.startswith("v1_")], reverse=True)
-            if not subdirs:
-                print("No model version found.")
-                return
-            target_dir = subdirs[0]
-
-        if not target_dir.exists():
-            print(f"Model version {version} not found in {self.models_dir}")
-            return
-
-        self.version = target_dir.name
-        
+    def __init__(self, bundle: Path):
+        self.version = bundle.name
         try:
-            with open(target_dir / "rf_model.pkl", "rb") as f:
-                self.rf = pickle.load(f)
-            with open(target_dir / "iso_model.pkl", "rb") as f:
-                self.iso = pickle.load(f)
-            with open(target_dir / "scaler.pkl", "rb") as f:
-                self.scaler = pickle.load(f)
-            print(f"Loaded model version: {self.version}")
-        except Exception as e:
-            print(f"Error loading model: {e}")
+            self.rf, self.iso, self.scaler = (
+                self._load_artifact(bundle / artifact) for artifact in ARTIFACTS
+            )
+        except Exception as exc:
+            raise ModelUnavailable(f"Model {self.version} could not be loaded.") from exc
+
+    @staticmethod
+    def _load_artifact(path: Path):
+        with path.open("rb") as artifact:
+            return pickle.load(artifact)
 
     def predict(self, features: dict) -> dict:
-        if self.rf is None or self.scaler is None:
-            raise RuntimeError("Model not loaded properly.")
-
         # Prepare feature vector
         row = []
         for col in FEATURE_COLS:
@@ -73,14 +52,14 @@ class NetFlowModel:
         X_scaled = self.scaler.transform(X)
         
         # Random Forest Prediction
-        predicted_label = self.rf.predict(X_scaled)[0]
+        predicted_label = str(self.rf.predict(X_scaled)[0])
         probs = self.rf.predict_proba(X_scaled)[0]
         confidence = float(probs.max())
         
         # Isolation Forest Anomaly Detection
         # decision_function returns the anomaly score (lower is more abnormal)
         anomaly_score = float(self.iso.decision_function(X_scaled)[0])
-        is_anomaly = self.iso.predict(X_scaled)[0] == -1
+        is_anomaly = bool(self.iso.predict(X_scaled)[0] == -1)
         
         return {
             "predicted_label": predicted_label,
@@ -91,12 +70,34 @@ class NetFlowModel:
         }
 
 
-# Singleton pattern for the backend
-_model_instances: dict[str, NetFlowModel] = {}
+_model_instances: dict[Path, NetFlowModel] = {}
+_model_lock = Lock()
+
 
 def get_model(version: str | None = None) -> NetFlowModel:
-    cache_key = version or "latest"
-    if cache_key not in _model_instances:
-        models_path = Path(os.environ.get("MODELS_DIR", "models"))
-        _model_instances[cache_key] = NetFlowModel(models_path, version)
-    return _model_instances[cache_key]
+    if version is not None and not VERSION_NAME.fullmatch(version):
+        raise ValueError("model_version must be a single version name")
+
+    try:
+        root = Path(os.environ.get("MODELS_DIR", "models")).resolve()
+        if version is not None:
+            candidates = [root / version]
+        else:
+            candidates = sorted(root.iterdir(), reverse=True) if root.is_dir() else []
+        bundle = next(
+            (candidate for candidate in candidates
+             if candidate.is_dir() and all((candidate / name).is_file() for name in ARTIFACTS)),
+            None,
+        )
+    except OSError as exc:
+        raise ModelUnavailable("The model directory is unavailable.") from exc
+
+    if bundle is None:
+        if version is not None:
+            raise ModelUnavailable(f"Model {version} has no complete artifact bundle.")
+        raise ModelUnavailable("No trained model bundle found. Train or install a model first.")
+
+    with _model_lock:
+        if bundle not in _model_instances:
+            _model_instances[bundle] = NetFlowModel(bundle)
+        return _model_instances[bundle]

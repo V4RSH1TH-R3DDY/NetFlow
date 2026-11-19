@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import time
 from typing import Any
 
+import pandas as pd
 import psycopg
 import threading
 from flask import Flask, request, Response
 
-from ml.inference import get_model
+from ml.feature_engineering import extract_features
+from ml.inference import FEATURE_COLS, VERSION_NAME, ModelUnavailable, get_model
 
 app = Flask(__name__)
 
@@ -495,7 +498,7 @@ def get_predictions() -> tuple[dict[str, Any], int]:
         conditions.append("p.model_version = %s")
         params.append(model_version)
     if predicted_label:
-        conditions.append("al.label_code = %s")
+        conditions.append("COALESCE(al.label_code, p.features->>'predicted_label') = %s")
         params.append(predicted_label.upper())
 
     where_clause = ""
@@ -503,7 +506,8 @@ def get_predictions() -> tuple[dict[str, Any], int]:
         where_clause = " WHERE " + " AND ".join(conditions)
 
     query = (
-        "SELECT p.prediction_id, p.session_id, al.label_code, p.confidence, p.model_version, p.created_at "
+        "SELECT p.prediction_id, p.session_id, COALESCE(al.label_code, p.features->>'predicted_label'), "
+        "p.confidence, p.model_version, p.created_at "
         "FROM predictions p "
         "LEFT JOIN attack_labels al ON al.label_id = p.predicted_label_id"
         f"{where_clause} "
@@ -588,87 +592,70 @@ def get_traffic_trends() -> tuple[dict[str, Any], int]:
 
 @app.post("/predict")
 def predict() -> tuple[dict[str, Any], int]:
-    payload = request.get_json(silent=True) or {}
-    session_id = payload.get("session_id")
-    if session_id is None:
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or payload.get("session_id") is None:
         return _invalid_request("session_id is required")
 
+    raw_id = payload["session_id"]
+    if type(raw_id) not in (int, str):
+        return _invalid_request("session_id must be a positive integer")
     try:
-        session_id = int(session_id)
-    except (TypeError, ValueError):
-        return _invalid_request("session_id must be an integer")
+        session_id = int(raw_id)
+    except ValueError:
+        return _invalid_request("session_id must be a positive integer")
+    if not 0 < session_id <= 2**63 - 1:
+        return _invalid_request("session_id must be a positive bigint")
 
-    model_version = str(payload.get("model_version", "baseline-rules-v1"))
+    version = payload.get("model_version")
+    if version is not None and (not isinstance(version, str) or not VERSION_NAME.fullmatch(version)):
+        return _invalid_request("model_version must be a single version name")
 
     try:
         with psycopg.connect(_database_url()) as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT session_id, packet_count, total_bytes, protocol
-                    FROM sessions
-                    WHERE session_id = %s
-                    """,
-                    [session_id],
-                )
+                cur.execute("SELECT src_ip::text FROM sessions WHERE session_id = %s", [session_id])
                 session_row = cur.fetchone()
                 if session_row is None:
                     return _error("not_found", f"Session {session_id} not found", 404)
 
-                _, packet_count, total_bytes, protocol = session_row
-
                 cur.execute(
-                    """
-                    SELECT duration_sec, total_bytes, total_packets, bytes_per_sec, packets_per_sec,
-                           iat_mean, iat_std, iat_min, iat_max, fwd_bwd_byte_ratio, payload_entropy,
-                           unique_dst_ports, avg_packet_size, packet_size_std, has_syn, has_fin, has_rst
-                    FROM session_features
-                    WHERE session_id = %s
-                    """,
+                    f"SELECT {', '.join(FEATURE_COLS)} FROM session_features WHERE session_id = %s",
                     [session_id],
                 )
                 feature_row = cur.fetchone()
-                
-                if feature_row is None:
-                    # Fallback to rules if no features are extracted yet
-                    predicted_label_code = "BENIGN"
-                    confidence = 0.15
-                    model_version = "baseline-rules-v1"
-                    is_anomaly = False
-
-                    if (packet_count or 0) >= 1000 or (total_bytes or 0) >= 5_000_000:
-                        predicted_label_code = "DOS"
-                        confidence = 0.92
-                    elif str(protocol).upper() == "ICMP" and (packet_count or 0) > 300:
-                        predicted_label_code = "PROBE"
-                        confidence = 0.81
-                        
-                    features_json = json.dumps(
-                        {
-                            "packet_count": packet_count,
-                            "total_bytes": total_bytes,
-                            "protocol": protocol,
-                            "strategy": "baseline_rules",
-                        }
-                    )
+                if feature_row is not None and all(value is not None and math.isfinite(value) for value in feature_row):
+                    features = dict(zip(FEATURE_COLS, feature_row))
                 else:
-                    cols = [
-                        "duration_sec", "total_bytes", "total_packets", "bytes_per_sec", "packets_per_sec",
-                        "iat_mean", "iat_std", "iat_min", "iat_max", "fwd_bwd_byte_ratio", "payload_entropy",
-                        "unique_dst_ports", "avg_packet_size", "packet_size_std", "has_syn", "has_fin", "has_rst"
-                    ]
-                    features = dict(zip(cols, feature_row))
-                    model = get_model()
-                    pred_result = model.predict(features)
-                    
-                    predicted_label_code = pred_result["predicted_label"]
-                    confidence = pred_result["confidence"]
-                    model_version = pred_result["model_version"]
-                    is_anomaly = pred_result["is_anomaly"]
-                    
-                    # Store anomaly info in features json
-                    features["is_anomaly"] = is_anomaly
-                    features_json = json.dumps(features)
+                    cur.execute(
+                        """
+                        SELECT captured_at, src_ip::text, dst_port, packet_size, tcp_flags
+                        FROM packets
+                        WHERE session_id = %s
+                        ORDER BY captured_at, packet_id
+                        """,
+                        [session_id],
+                    )
+                    packet_rows = cur.fetchall()
+                    if not packet_rows:
+                        return _error("features_unavailable", "Session has no usable features or linked packets", 422)
+                    packets = pd.DataFrame(
+                        packet_rows,
+                        columns=["captured_at", "src_ip", "dst_port", "packet_size", "tcp_flags"],
+                    )
+                    features = extract_features(pd.Series({"src_ip": session_row[0]}), packets)
+
+                try:
+                    prediction = get_model(version).predict(features)
+                    features_json = json.dumps({**features, **prediction}, allow_nan=False)
+                except ModelUnavailable as exc:
+                    return _error("model_unavailable", str(exc), 503)
+                except Exception:
+                    app.logger.exception("Session prediction failed")
+                    return _error("inference_failed", "The trained model could not score the session", 500)
+
+                predicted_label_code = prediction["predicted_label"]
+                confidence = prediction["confidence"]
+                model_version = prediction["model_version"]
 
                 cur.execute(
                     """

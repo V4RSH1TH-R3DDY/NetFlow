@@ -15,6 +15,7 @@ services:
       - ./db/indexes.sql:/docker-entrypoint-initdb.d/02-indexes.sql:ro
       - ./db/views.sql:/docker-entrypoint-initdb.d/03-views.sql:ro
       - ./db/triggers.sql:/docker-entrypoint-initdb.d/04-triggers.sql:ro
+      - ./db/session_features.sql:/docker-entrypoint-initdb.d/05-session-features.sql:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netflow} -d ${POSTGRES_DB:-netflow}" ]
       interval: 10s

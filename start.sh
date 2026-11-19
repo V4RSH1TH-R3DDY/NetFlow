@@ -27,7 +27,7 @@ fi
 if [[ ! -x .venv/bin/python ]]; then
     echo "Python virtual environment not found. Setting up..."
     python3 -m venv .venv
-    .venv/bin/pip install -r requirements.txt scikit-learn joblib pyarrow
+    .venv/bin/pip install -r requirements.txt
 fi
 
 echo "Loading environment variables..."

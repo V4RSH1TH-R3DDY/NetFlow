@@ -38,8 +38,6 @@ class OnlineSessionTracker:
     def __init__(self, database_url: str):
         self.database_url = database_url
         self.active_sessions: dict[tuple, dict] = {}
-        self.model = get_model()
-        logger.info(f"Initialized with model version: {self.model.version}")
         
     def _get_session_key(self, packet: dict) -> tuple:
         src_ip, dst_ip = packet["src_ip"], packet["dst_ip"]
@@ -84,7 +82,7 @@ class OnlineSessionTracker:
             packets_df = pd.DataFrame(session["packets"])
             session_row = pd.Series({"src_ip": session["src_ip"], "dst_ip": session["dst_ip"]})
             features = extract_features(session_row, packets_df)
-            result = self.model.predict(features)
+            result = get_model().predict(features)
             
             if result["predicted_label"] != "BENIGN" or result["is_anomaly"]:
                  logger.warning(f"Detection: {result['predicted_label']} for {session['src_ip']} -> {session['dst_ip']}")
@@ -131,6 +129,7 @@ class OnlineSessionTracker:
                         result["model_version"],
                         float(result["confidence"]),
                         json.dumps({
+                            "predicted_label": result["predicted_label"],
                             "anomaly_score": float(result["anomaly_score"]),
                             "is_anomaly": bool(result["is_anomaly"])
                         })

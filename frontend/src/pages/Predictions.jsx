@@ -15,7 +15,7 @@ const Predictions = () => {
     queryFn: async () => {
       const params = { limit: pageSize, offset: page * pageSize };
       if (modelFilter) params.model_version = modelFilter;
-      if (labelFilter) params.predicted_label = labelFilter;
+      if (labelFilter.trim()) params.predicted_label = labelFilter.trim();
       return api.listPredictions(params);
     },
     keepPreviousData: true,
@@ -70,18 +70,14 @@ const Predictions = () => {
             className="bg-dark-surface border border-dark-border px-2.5 py-1 text-zinc-300 placeholder:text-zinc-600 focus:outline-none w-36"
           />
 
-          <select
+          <input
+            type="text"
+            aria-label="Filter by predicted label"
+            placeholder="FILTER LABEL"
             value={labelFilter}
             onChange={(e) => { setLabelFilter(e.target.value); setPage(0); }}
-            className="bg-dark-surface border border-dark-border px-2.5 py-1 text-zinc-300 focus:outline-none"
-          >
-            <option value="">ALL_CLASSES</option>
-            <option value="BENIGN">BENIGN</option>
-            <option value="DOS">DOS</option>
-            <option value="PROBE">PROBE</option>
-            <option value="BOT">BOT</option>
-            <option value="SSH-BRUTEFORCE">SSH-BRUTEFORCE</option>
-          </select>
+            className="bg-dark-surface border border-dark-border px-2.5 py-1 text-zinc-300 placeholder:text-zinc-600 focus:outline-none w-36"
+          />
 
           <button
             onClick={() => refetch()}

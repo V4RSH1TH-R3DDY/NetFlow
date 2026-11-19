@@ -117,7 +117,7 @@
 - [x] Normalization pipeline (`StandardScaler`), serialized to `models/scaler.pkl`
 
 ### 4.2 Baseline Model
-- [x] Rules-based classifier (already partially in `/predict` endpoint) — formalize and test
+- [x] Rules-based classifier for offline evaluation — formalize and test
 - [x] Logistic Regression baseline for comparison metrics
 
 ### 4.3 Primary Model
@@ -321,3 +321,30 @@ Phase 0 ──► Phase 1 ──► Phase 2 ──► Phase 3 ──► Phase 4
 - **SQL style**: lowercase keywords, explicit column lists (no `SELECT *` in production queries)
 - **API versioning**: prefix all routes with `/api/v1/` going forward
 - **Secrets**: never committed; always via `.env` or mounted secrets in Docker
+### Run trained inference
+
+The checked-in model directories contain metadata. Train locally using the
+included training parquet (from the project root, with dependencies installed):
+
+```bash
+python -m ml.train
+```
+
+You can also install trusted fitted artifacts. Training and inference use
+`MODELS_DIR` (default `models`). Each version has a directory with
+`rf_model.pkl`, `iso_model.pkl`, and `scaler.pkl`. Publish a new version
+directory when replacing a bundle. With no version in the request, inference
+selects the highest directory name among complete bundles. The generated
+version names sort chronologically within the current version generation.
+
+New Docker Compose databases initialize the feature table. For an existing
+database that lacks it, apply the idempotent `db/session_features.sql` script
+before requesting predictions.
+
+`POST /predict` accepts a body such as `{"session_id": 1}`. To select an
+installed bundle, also send `"model_version": "<version directory>"`.
+After looking up the session, the route uses stored features or extracts them
+from linked packet records for that request. An existing session with neither
+usable features nor linked packets returns `422 features_unavailable`.
+A missing model bundle returns `503 model_unavailable`. The Predictions page
+shows the stored inference history, an empty state, or the API error.

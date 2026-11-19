@@ -20,7 +20,7 @@ import os
 import psycopg
 from dotenv import load_dotenv
 
-from ml.inference import get_model
+from ml.inference import FEATURE_COLS, get_model
 
 def batch_inference(database_url: str, model_version: str | None = None):
     model = get_model(model_version)
@@ -31,13 +31,9 @@ def batch_inference(database_url: str, model_version: str | None = None):
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
             # Find sessions that don't have predictions for THIS version
-            cur.execute("""
-                SELECT sf.session_id, sf.duration_sec, sf.total_bytes, sf.total_packets,
-                       sf.bytes_per_sec, sf.packets_per_sec,
-                       sf.iat_mean, sf.iat_std, sf.iat_min, sf.iat_max,
-                       sf.fwd_bwd_byte_ratio, sf.payload_entropy,
-                       sf.unique_dst_ports, sf.avg_packet_size, sf.packet_size_std,
-                       sf.has_syn, sf.has_fin, sf.has_rst
+            feature_columns = ", ".join(f"sf.{column}" for column in FEATURE_COLS)
+            cur.execute(f"""
+                SELECT sf.session_id, {feature_columns}
                 FROM session_features sf
                 LEFT JOIN predictions p ON p.session_id = sf.session_id AND p.model_version = %s
                 WHERE p.prediction_id IS NULL
@@ -50,30 +46,10 @@ def batch_inference(database_url: str, model_version: str | None = None):
                 
             print(f"Processing {len(rows)} sessions...")
             
-            cols = [
-                "session_id", "duration_sec", "total_bytes", "total_packets",
-                "bytes_per_sec", "packets_per_sec",
-                "iat_mean", "iat_std", "iat_min", "iat_max",
-                "fwd_bwd_byte_ratio", "payload_entropy",
-                "unique_dst_ports", "avg_packet_size", "packet_size_std",
-                "has_syn", "has_fin", "has_rst"
-            ]
-            
             processed = 0
-            for row in rows:
-                session_id = row[0]
-                features = dict(zip(cols[1:], row[1:]))
-                
+            for session_id, *values in rows:
+                features = dict(zip(FEATURE_COLS, values))
                 result = model.predict(features)
-                
-                # Insert prediction
-                # Ensure all values are JSON serializable (handle numpy types)
-                clean_features = {
-                    k: (v.item() if hasattr(v, "item") else v) 
-                    for k, v in features.items()
-                }
-                clean_features["anomaly_score"] = result["anomaly_score"].item() if hasattr(result["anomaly_score"], "item") else result["anomaly_score"]
-                clean_features["is_anomaly"] = bool(result["is_anomaly"])
 
                 cur.execute("""
                     WITH label AS (
@@ -81,14 +57,15 @@ def batch_inference(database_url: str, model_version: str | None = None):
                     )
                     INSERT INTO predictions (session_id, predicted_label_id, confidence, model_version, features)
                     VALUES (%s, (SELECT label_id FROM label), %s, %s, %s::jsonb)
+                    ON CONFLICT (session_id, model_version) DO NOTHING
                 """, (
                     result["predicted_label"],
                     session_id,
                     float(result["confidence"]),
                     actual_version,
-                    json.dumps(clean_features)
+                    json.dumps({**features, **result}, allow_nan=False)
                 ))
-                processed += 1
+                processed += cur.rowcount
                 
         conn.commit()
     print(f"Done. Processed {processed} sessions.")

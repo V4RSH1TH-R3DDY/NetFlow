@@ -21,15 +21,6 @@ const fallbackSessions = [
     { session_id: 105, src_ip: '203.0.113.66', dst_ip: '192.168.1.10', src_port: 40992, dst_port: 80, protocol: 'TCP', started_at: new Date(Date.now() - 60000).toISOString(), ended_at: new Date().toISOString(), packet_count: 4890, total_bytes: 2540000, flow_hash: '7b8c9d0e-1f2a-3b4c-5d6e-7f8a9b0c1d2e' },
 ];
 
-// Generate realistic mock predictions if backend is empty/offline
-const fallbackPredictions = [
-    { prediction_id: 501, session_id: 105, model_version: 'v1_20260428102639', predicted_label: 'DDOS ATTACK-HOIC', confidence: 0.984, created_at: new Date(Date.now() - 60000).toISOString() },
-    { prediction_id: 502, session_id: 102, model_version: 'v1_20260428102639', predicted_label: 'SSH-BRUTEFORCE', confidence: 0.942, created_at: new Date(Date.now() - 1800000).toISOString() },
-    { prediction_id: 503, session_id: 101, model_version: 'v1_20260428102639', predicted_label: 'BENIGN', confidence: 0.991, created_at: new Date(Date.now() - 3600000).toISOString() },
-    { prediction_id: 504, session_id: 103, model_version: 'v1_20260428102639', predicted_label: 'BENIGN', confidence: 0.978, created_at: new Date(Date.now() - 900000).toISOString() },
-    { prediction_id: 505, session_id: 104, model_version: 'v1_20260428102639', predicted_label: 'BENIGN', confidence: 0.965, created_at: new Date(Date.now() - 300000).toISOString() },
-];
-
 const fallbackAlerts = [
     { alert_id: 1, session_id: 105, prediction_id: 501, alert_type: 'ML_STREAMING_DETECTION', severity: 5, status: 'open', rule_name: 'DDOS ATTACK-HOIC', description: 'Volumetric HTTP/TCP burst detected from 203.0.113.66', triggered_at: new Date(Date.now() - 60000).toISOString() },
     { alert_id: 2, session_id: 102, prediction_id: 502, alert_type: 'ML_STREAMING_DETECTION', severity: 4, status: 'acknowledged', rule_name: 'SSH-BRUTEFORCE', description: 'Rapid sequential authentication attempts on port 22', triggered_at: new Date(Date.now() - 1800000).toISOString() },
@@ -65,7 +56,7 @@ const fallbackTrends = [
     { minute_bucket: new Date(Date.now() - 60000).toISOString(), packet_count: 4800, bytes_per_minute: 9800000 },
 ];
 
-async function request(path, { method = "GET", params, body, signal } = {}) {
+async function request(path, { method = "GET", params, body, signal, demoFallback = true } = {}) {
     try {
         const response = await fetch(buildUrl(path, params), {
             method,
@@ -80,17 +71,18 @@ async function request(path, { method = "GET", params, body, signal } = {}) {
         const payload = text ? JSON.parse(text) : null;
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+            throw new Error(payload?.error?.message || `HTTP ${response.status}`);
         }
 
         const data = (payload && typeof payload === "object" && "ok" in payload) ? payload.data : payload;
         
         // If the live database returns empty data, seamlessly use demo fallback so tabs are never blank
-        if (Array.isArray(data) && data.length === 0) {
+        if (demoFallback && Array.isArray(data) && data.length === 0) {
             return getFallbackForPath(path);
         }
         return data;
     } catch (err) {
+        if (!demoFallback) throw err;
         // Return demo fallback when backend is unreachable or not yet populated
         return getFallbackForPath(path);
     }
@@ -98,7 +90,6 @@ async function request(path, { method = "GET", params, body, signal } = {}) {
 
 function getFallbackForPath(path) {
     if (path.startsWith("/sessions")) return fallbackSessions;
-    if (path.startsWith("/predictions")) return fallbackPredictions;
     if (path.startsWith("/alerts")) return fallbackAlerts;
     if (path.startsWith("/packets/count")) return { count: 14210 };
     if (path.startsWith("/packets")) return fallbackPackets;
@@ -121,9 +112,9 @@ export const api = {
     listAlerts: (params) => request("/alerts", { params }),
     getAlert: (alertId) => request(`/alerts/${alertId}`),
     updateAlertStatus: (alertId, status) => request(`/alerts/${alertId}/status`, { method: "PUT", body: { status } }),
-    listPredictions: (params) => request("/predictions", { params }),
+    listPredictions: (params) => request("/predictions", { params, demoFallback: false }),
     listIngestionRuns: (params) => request("/ingestion-runs", { params }),
     topIps: (params) => request("/top-ips", { params }),
     trafficTrends: (params) => request("/traffic-trends", { params }),
-    predict: (body) => request("/predict", { method: "POST", body }),
+    predict: (body) => request("/predict", { method: "POST", body, demoFallback: false }),
 };
