@@ -54,88 +54,102 @@ const AlertDetailDrawer = ({ alertId, onClose, onStatusChange }) => {
   const explanations = alertDetail ? generateThreatExplanation(alertDetail) : [];
 
   return (
-    <div className="fixed inset-y-0 right-0 w-96 bg-dark-panel border-l border-dark-border z-50 flex flex-col font-mono text-xs shadow-2xl">
-      <div className="h-12 border-b border-dark-border px-4 flex items-center justify-between bg-dark-surface/50">
-        <span className="font-semibold text-zinc-100">INCIDENT_FILE #{alertId}</span>
-        <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+    <>
+      {/* Backdrop overlay to isolate drawer and prevent coalesce with underneath table */}
+      <div 
+        onClick={onClose}
+        className="fixed inset-0 bg-black/75 z-40 backdrop-blur-[2px] transition-opacity"
+      />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {isLoading || !alertDetail ? (
-          <div className="text-zinc-500 py-10 text-center">FETCHING_TELEMETRY...</div>
-        ) : (
-          <>
-            <div className="border border-dark-border p-3 space-y-2 bg-dark-surface/20">
-              <div className="text-[10px] text-zinc-500 uppercase">STATUS & SEVERITY</div>
-              <div className="flex items-center justify-between">
-                <span className={`px-1.5 py-0.5 border text-[10px] uppercase ${
-                  alertDetail.status === 'open' ? 'border-rose-500/40 text-rose-400 bg-rose-500/10' : 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
-                }`}>
-                  {alertDetail.status}
-                </span>
-                <span className="text-zinc-300 font-bold">SEVERITY {alertDetail.severity}</span>
-              </div>
-            </div>
+      <div className="fixed inset-y-0 right-0 w-[440px] max-w-[90vw] bg-zinc-950 border-l border-dark-border z-50 flex flex-col font-mono text-xs shadow-[0_0_50px_rgba(0,0,0,0.9)]">
+        <div className="h-14 border-b border-dark-border px-5 flex items-center justify-between bg-zinc-900/90">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 bg-rose-500 inline-block" />
+            <span className="font-semibold text-zinc-100 tracking-wider">INCIDENT_FILE #{alertId}</span>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="p-1.5 border border-dark-border text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
-            {/* Why this is an alert */}
-            <div className="border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
-              <div className="text-[10px] text-amber-400 uppercase font-semibold flex items-center gap-1.5">
-                <ShieldAlert className="w-3.5 h-3.5" /> WHY_THIS_IS_AN_ALERT
-              </div>
-              <ul className="space-y-1.5 text-zinc-300 text-[11px] list-disc list-inside">
-                {explanations.map((exp, idx) => (
-                  <li key={idx} className="leading-snug">{exp}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="border border-dark-border p-3 space-y-2">
-              <div className="text-[10px] text-zinc-500 uppercase">INCIDENT_DESCRIPTION</div>
-              <p className="text-zinc-300 leading-relaxed">{alertDetail.description || 'No description logged.'}</p>
-            </div>
-
-            {session && (
-              <div className="border border-dark-border p-3 space-y-2">
-                <div className="text-[10px] text-zinc-500 uppercase">SESSION_FLOW_TELEMETRY</div>
-                <div className="space-y-1 text-zinc-400">
-                  <div>SRC: <span className="text-zinc-200">{session.src_ip}:{session.src_port || '--'}</span></div>
-                  <div>DST: <span className="text-zinc-200">{session.dst_ip}:{session.dst_port || '--'}</span></div>
-                  <div>PROTO: <span className="text-cyan-400 font-semibold">{session.protocol}</span></div>
-                  <div>PACKETS: <span className="text-zinc-200">{session.packet_count || '--'}</span></div>
-                  {session.total_bytes && <div>VOLUME: <span className="text-zinc-200">{session.total_bytes} bytes</span></div>}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {isLoading || !alertDetail ? (
+            <div className="text-zinc-500 py-16 text-center animate-pulse">FETCHING_TELEMETRY...</div>
+          ) : (
+            <>
+              <div className="border border-dark-border p-3.5 space-y-2 bg-zinc-900/50">
+                <div className="text-[10px] text-zinc-500 uppercase">STATUS & SEVERITY</div>
+                <div className="flex items-center justify-between">
+                  <span className={`px-2 py-0.5 border text-[10px] uppercase font-bold ${
+                    alertDetail.status === 'open' ? 'border-rose-500/50 text-rose-400 bg-rose-500/10' : 'border-emerald-500/50 text-emerald-400 bg-emerald-500/10'
+                  }`}>
+                    {alertDetail.status}
+                  </span>
+                  <span className="text-zinc-200 font-bold">SEVERITY {alertDetail.severity}</span>
                 </div>
               </div>
-            )}
 
-            {prediction && (
-              <div className="border border-dark-border p-3 space-y-2 bg-dark-surface/10">
-                <div className="text-[10px] text-zinc-500 uppercase">MODEL_INFERENCE_ATTRIBUTION</div>
-                <div className="space-y-1 text-zinc-400">
-                  <div>MODEL: <span className="text-zinc-300">{prediction.model_version}</span></div>
-                  <div>CLASSIFICATION: <span className="text-rose-400 font-bold">{prediction.predicted_label}</span></div>
-                  {prediction.confidence != null && (
-                    <div>CONFIDENCE: <span className="text-emerald-400 font-semibold">{(prediction.confidence * 100).toFixed(1)}%</span></div>
-                  )}
+              {/* Why this is an alert */}
+              <div className="border border-amber-500/40 bg-amber-500/10 p-3.5 space-y-2">
+                <div className="text-[10px] text-amber-400 uppercase font-bold flex items-center gap-1.5">
+                  <ShieldAlert className="w-3.5 h-3.5" /> WHY_THIS_IS_AN_ALERT
                 </div>
+                <ul className="space-y-1.5 text-zinc-200 text-[11px] list-disc list-inside">
+                  {explanations.map((exp, idx) => (
+                    <li key={idx} className="leading-relaxed">{exp}</li>
+                  ))}
+                </ul>
               </div>
-            )}
 
-            <div className="border-t border-dark-border pt-4 flex gap-2">
-              {alertDetail.status === 'open' && (
-                <button
-                  onClick={() => onStatusChange(alertId, 'resolved')}
-                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-zinc-100 font-mono text-xs flex items-center justify-center gap-1.5"
-                >
-                  <Check className="w-3.5 h-3.5" /> RESOLVE_INCIDENT
-                </button>
+              <div className="border border-dark-border p-3.5 space-y-2 bg-zinc-900/30">
+                <div className="text-[10px] text-zinc-500 uppercase font-semibold">INCIDENT_DESCRIPTION</div>
+                <p className="text-zinc-200 leading-relaxed">{alertDetail.description || 'No description logged.'}</p>
+              </div>
+
+              {session && (
+                <div className="border border-dark-border p-3.5 space-y-2 bg-zinc-900/30">
+                  <div className="text-[10px] text-zinc-500 uppercase font-semibold">SESSION_FLOW_TELEMETRY</div>
+                  <div className="space-y-1.5 text-zinc-400">
+                    <div>SRC: <span className="text-zinc-200 font-bold">{session.src_ip}:{session.src_port || '--'}</span></div>
+                    <div>DST: <span className="text-zinc-200 font-bold">{session.dst_ip}:{session.dst_port || '--'}</span></div>
+                    <div>PROTO: <span className="text-cyan-400 font-bold">{session.protocol}</span></div>
+                    <div>PACKETS: <span className="text-zinc-200">{session.packet_count || '--'}</span></div>
+                    {session.total_bytes && <div>VOLUME: <span className="text-zinc-200">{session.total_bytes.toLocaleString()} bytes</span></div>}
+                  </div>
+                </div>
               )}
-            </div>
-          </>
-        )}
+
+              {prediction && (
+                <div className="border border-dark-border p-3.5 space-y-2 bg-zinc-900/40">
+                  <div className="text-[10px] text-zinc-500 uppercase font-semibold">MODEL_INFERENCE_ATTRIBUTION</div>
+                  <div className="space-y-1.5 text-zinc-400">
+                    <div>MODEL: <span className="text-zinc-300 font-mono">{prediction.model_version}</span></div>
+                    <div>CLASSIFICATION: <span className="text-rose-400 font-bold">{prediction.predicted_label}</span></div>
+                    {prediction.confidence != null && (
+                      <div>CONFIDENCE: <span className="text-emerald-400 font-bold">{(prediction.confidence * 100).toFixed(1)}%</span></div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="border-t border-dark-border pt-4">
+                {alertDetail.status === 'open' && (
+                  <button
+                    onClick={() => onStatusChange(alertId, 'resolved')}
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-zinc-100 font-mono text-xs flex items-center justify-center gap-1.5 font-semibold transition-colors"
+                  >
+                    <Check className="w-3.5 h-3.5" /> RESOLVE_INCIDENT
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

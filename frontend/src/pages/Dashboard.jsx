@@ -133,20 +133,20 @@ const Dashboard = () => {
     <div className="space-y-4 font-mono relative">
       {/* Real-time Alert Toast Notification Popups */}
       {liveToasts.length > 0 && (
-        <div className="fixed top-20 right-6 z-50 flex flex-col gap-2 max-w-sm pointer-events-auto">
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col-reverse gap-2.5 max-w-sm pointer-events-auto">
           {liveToasts.map(toast => (
             <div
               key={toast.id}
-              className="border border-rose-500/50 bg-dark-panel p-3 shadow-2xl flex items-start gap-2.5 animate-in slide-in-from-right duration-200"
+              className="border border-rose-500/80 bg-zinc-950 p-3.5 shadow-[0_10px_30px_rgba(0,0,0,0.8)] flex items-start gap-3 backdrop-blur-md"
             >
               <div className="w-2 h-2 rounded-full bg-rose-500 animate-ping mt-1 shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between text-[11px] font-bold text-rose-400 uppercase">
                   <span>LIVE_ALERT #{toast.alert_id}</span>
-                  <span className="text-[9px] px-1 border border-rose-500/40">SEV-{toast.severity || 4}</span>
+                  <span className="text-[9px] px-1.5 py-0.2 bg-rose-500/10 border border-rose-500/40">SEV-{toast.severity || 4}</span>
                 </div>
-                <div className="text-xs text-zinc-200 font-semibold truncate mt-0.5">{toast.alert_type}</div>
-                <div className="text-[10px] text-zinc-400 line-clamp-2 mt-0.5">{toast.description}</div>
+                <div className="text-xs text-zinc-100 font-semibold truncate mt-1">{toast.alert_type}</div>
+                <div className="text-[11px] text-zinc-400 line-clamp-2 mt-1 leading-snug">{toast.description}</div>
               </div>
             </div>
           ))}
